@@ -92,14 +92,25 @@ interface IUSDT {
 }
 
 interface IStETH is IERC20 {
+    /**
+     * @return the amount of Ether that corresponds to `_sharesAmount` token shares.
+     */
     function getPooledEthByShares(
         uint256 _sharesAmount
     ) external view returns (uint256);
 
+    /**
+     * @return the amount of shares that corresponds to `_ethAmount` protocol-controlled Ether.
+     */
     function getSharesByPooledEth(
         uint256 _pooledEthAmount
     ) external view returns (uint256);
 
+    /**
+     * @dev Process user deposit, mints liquid tokens and increase the pool buffer
+     * @param _referral address of referral.
+     * @return amount of StETH shares generated
+     */
     function submit(address _referral) external payable returns (uint256);
 }
 
@@ -117,16 +128,24 @@ interface IPufETH is IERC20 {
     function depositUSDT(uint256 _USDTAmount) external returns (uint256);
 
     // Deposit stETH for EigenPoints
-    function depositToEigenLayer(uint256 _stETHAmount) external returns (uint256);
+    function depositToEigenLayer(
+        uint256 _stETHAmount
+    ) external returns (uint256);
 
     // Retrieve stETH from EigenLayer
-    function withdrawFromEigenLayer(uint256 _stETHAmount) external returns (uint256);
+    function withdrawFromEigenLayer(
+        uint256 _stETHAmount
+    ) external returns (uint256);
 
     // Trigger redemptions from Lido
-    function withdrawStETHToETH(uint256 _stETHAmount) external returns (uint256);
+    function withdrawStETHToETH(
+        uint256 _stETHAmount
+    ) external returns (uint256);
 }
 
 interface IVault {}
+
+interface IEigenLayer {}
 
 /**
  * @title StETH token wrapper with static balances.
@@ -170,6 +189,9 @@ contract PufETH is ERC20Permit {
     IUSDT public constant USDT =
         IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
+    IEigenLayer public constant EIGENLAYER =
+        IEigenLayer(0xdAC17F958D2ee523a2206206994597C13D831ec7); // todo
+
     // Swap protocols
     // IUniswap public constant USDC_STETH = IUniswap(...);
 
@@ -190,49 +212,55 @@ contract PufETH is ERC20Permit {
         pufferPool = IPufferPool(a);
     }
 
+    function setWithdrawalPool(address a) external {
+        withdrawalPool = IWithdrawalPool(a);
+    }
+
+    function setStETHVault(address a) external {
+        stETHVault = IVault(a);
+        stETH.approve(address(stETHVault), 1000 ether); // todo
+    }
+
+    function setRPufETHVault(address a) external {
+        rPufETHVault = IVault(a);
+        stETH.approve(address(rPufETHVault), 1000 ether); // todo
+    }
+
+    // /**
+    //  * @notice Exchanges wstETH to stETH
+    //  * @param _wstETHAmount amount of wstETH to uwrap in exchange for stETH
+    //  * @dev Requirements:
+    //  *  - `_wstETHAmount` must be non-zero
+    //  *  - msg.sender must have at least `_wstETHAmount` wstETH.
+    //  * @return Amount of stETH user receives after unwrap
+    //  */
+    // function unwrap(uint256 _wstETHAmount) external returns (uint256) {
+    //     require(_wstETHAmount > 0, "wstETH: zero amount unwrap not allowed");
+    //     uint256 stETHAmount = stETH.getPooledEthByShares(_wstETHAmount);
+    //     _burn(msg.sender, _wstETHAmount);
+    //     stETH.transfer(msg.sender, stETHAmount);
+    //     return stETHAmount;
+    // }
+
     /**
-     * @notice Exchanges stETH to wstETH
-     * @param _stETHAmount amount of stETH to wrap in exchange for wstETH
+     * @notice Deposit stETH into stETHVault and mint pufETH
+     * @param _stETHAmount amount of stETH to deposit in exchange for pufETH
      * @dev Requirements:
      *  - `_stETHAmount` must be non-zero
      *  - msg.sender must approve at least `_stETHAmount` stETH to this
      *    contract.
      *  - msg.sender must have at least `_stETHAmount` of stETH.
-     * User should first approve _stETHAmount to the WstETH contract
-     * @return Amount of wstETH user receives after wrap
+     * User should first approve _stETHAmount to the pufETH contract
+     * @return Amount of pufETH user receives after wrap
      */
-    function wrap(uint256 _stETHAmount) external returns (uint256) {
-        require(_stETHAmount > 0, "insufficient stETH amount");
-        uint256 wstETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
-        _mint(msg.sender, wstETHAmount);
-        stETH.transferFrom(msg.sender, address(this), _stETHAmount);
-        return wstETHAmount;
-    }
-
-    /**
-     * @notice Exchanges wstETH to stETH
-     * @param _wstETHAmount amount of wstETH to uwrap in exchange for stETH
-     * @dev Requirements:
-     *  - `_wstETHAmount` must be non-zero
-     *  - msg.sender must have at least `_wstETHAmount` wstETH.
-     * @return Amount of stETH user receives after unwrap
-     */
-    function unwrap(uint256 _wstETHAmount) external returns (uint256) {
-        require(_wstETHAmount > 0, "wstETH: zero amount unwrap not allowed");
-        uint256 stETHAmount = stETH.getPooledEthByShares(_wstETHAmount);
-        _burn(msg.sender, _wstETHAmount);
-        stETH.transfer(msg.sender, stETHAmount);
-        return stETHAmount;
-    }
-
-    // Deposit stETH into stETHVaultto mint pufETH
     function depositStETH(uint256 _stETHAmount) external returns (uint256) {
         require(_stETHAmount > 0, "insufficient stETH amount");
-        uint256 pufETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
-        _mint(msg.sender, pufETHAmount);
-        // 
-        stETH.transferFrom(msg.sender, address(stETHVault), _stETHAmount);
-        return pufETHAmount;
+        if (isMainnet) {} else {
+            uint256 pufETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
+            _mint(msg.sender, pufETHAmount);
+            stETH.transferFrom(msg.sender, address(stETHVault), _stETHAmount);
+            return pufETHAmount;
+        }
     }
 
     /**
