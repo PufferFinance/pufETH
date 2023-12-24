@@ -143,9 +143,16 @@ interface IPufETH is IERC20 {
     ) external returns (uint256);
 }
 
-interface IVault {}
+interface IStETHVault {
+    // Deposit stETH for EigenPoints
+    function depositToEigenLayer(uint256 amount) external returns (uint256);
+}
 
-interface IEigenLayer {}
+interface IPufETHVault {}
+
+interface IEigenLayer {
+    function depositStETH(uint256 _stETHAmount) external returns (uint256);
+}
 
 /**
  * @title StETH token wrapper with static balances.
@@ -168,16 +175,10 @@ contract PufETH is ERC20Permit {
     mapping(address => uint256) public ethShares;
     uint256 public totalETHShares;
 
-    mapping(address => uint256) public usdShares;
-    uint256 public totalUSDShares;
-
-    mapping(address => bool) public transitioned;
-    bool public isTransitionEnabled;
-
     IPufferPool public pufferPool;
     IWithdrawalPool public withdrawalPool;
-    IVault public stETHVault;
-    IVault public rPufETHVault;
+    IStETHVault public stETHVault;
+    IPufETHVault public rPufETHVault;
 
     bool public isMainnet = false;
 
@@ -191,6 +192,8 @@ contract PufETH is ERC20Permit {
 
     IEigenLayer public constant EIGENLAYER =
         IEigenLayer(0xdAC17F958D2ee523a2206206994597C13D831ec7); // todo
+
+    uint256 MAX_APPROVAL = ~uint256(0);
 
     // Swap protocols
     // IUniswap public constant USDC_STETH = IUniswap(...);
@@ -206,7 +209,9 @@ contract PufETH is ERC20Permit {
     constructor()
         ERC20Permit("PufETH liquid restaking token")
         ERC20("PufETH liquid restaking token", "pufETH")
-    {}
+    {
+        stETH.approve(address(EIGENLAYER), MAX_APPROVAL);
+    }
 
     function setPufferPool(address a) external {
         pufferPool = IPufferPool(a);
@@ -217,30 +222,14 @@ contract PufETH is ERC20Permit {
     }
 
     function setStETHVault(address a) external {
-        stETHVault = IVault(a);
-        stETH.approve(address(stETHVault), 1000 ether); // todo
+        stETHVault = IStETHVault(a);
+        stETH.approve(address(stETHVault), MAX_APPROVAL);
     }
 
     function setRPufETHVault(address a) external {
-        rPufETHVault = IVault(a);
-        stETH.approve(address(rPufETHVault), 1000 ether); // todo
+        rPufETHVault = IPufETHVault(a);
+        stETH.approve(address(rPufETHVault), MAX_APPROVAL);
     }
-
-    // /**
-    //  * @notice Exchanges wstETH to stETH
-    //  * @param _wstETHAmount amount of wstETH to uwrap in exchange for stETH
-    //  * @dev Requirements:
-    //  *  - `_wstETHAmount` must be non-zero
-    //  *  - msg.sender must have at least `_wstETHAmount` wstETH.
-    //  * @return Amount of stETH user receives after unwrap
-    //  */
-    // function unwrap(uint256 _wstETHAmount) external returns (uint256) {
-    //     require(_wstETHAmount > 0, "wstETH: zero amount unwrap not allowed");
-    //     uint256 stETHAmount = stETH.getPooledEthByShares(_wstETHAmount);
-    //     _burn(msg.sender, _wstETHAmount);
-    //     stETH.transfer(msg.sender, stETHAmount);
-    //     return stETHAmount;
-    // }
 
     /**
      * @notice Deposit stETH into stETHVault and mint pufETH
@@ -264,77 +253,90 @@ contract PufETH is ERC20Permit {
     }
 
     /**
-     * @notice Get amount of wstETH for a given amount of stETH
+     * @notice Get amount of pufETH for a given amount of stETH
      * @param _stETHAmount amount of stETH
      * @return Amount of wstETH for a given stETH amount
      */
-    function getWstETHByStETH(
+    function getPufETHByStETH(
         uint256 _stETHAmount
     ) external view returns (uint256) {
         return stETH.getSharesByPooledEth(_stETHAmount);
     }
 
     /**
-     * @notice Get amount of stETH for a given amount of wstETH
-     * @param _wstETHAmount amount of wstETH
-     * @return Amount of stETH for a given wstETH amount
+     * @notice Get amount of stETH for a given amount of pufETH
+     * @param _pufETHAmount amount of pufETH
+     * @return Amount of stETH for a given pufETH amount
      */
-    function getStETHByWstETH(
-        uint256 _wstETHAmount
+    function getStETHByPufETH(
+        uint256 _pufETHAmount
     ) external view returns (uint256) {
-        return stETH.getPooledEthByShares(_wstETHAmount);
+        return stETH.getPooledEthByShares(_pufETHAmount);
     }
 
     /**
-     * @notice Get amount of stETH for a one wstETH
-     * @return Amount of stETH for 1 wstETH
+     * @notice Get amount of stETH for a one pufETH
+     * @return Amount of stETH for 1 pufETH
      */
     function stEthPerToken() external view returns (uint256) {
         return stETH.getPooledEthByShares(1 ether);
     }
 
     /**
-     * @notice Get amount of wstETH for a one stETH
-     * @return Amount of wstETH for a 1 stETH
+     * @notice Get amount of pufETH for a one stETH
+     * @return Amount of pufETH for a 1 stETH
      */
     function tokensPerStEth() external view returns (uint256) {
         return stETH.getSharesByPooledEth(1 ether);
     }
+
+    // Performs Swap from ETH to stETH
+    function depositETH(uint256 amount) external returns (uint256) {
+        // swap
+
+        // deposit
+
+        // mint
+        return 1;
+    }
+
+    // Performs Swap from USDC to stETH
+    function depositUSDC(uint256 amount) external returns (uint256) {
+        // swap
+
+        // deposit
+
+        // mint
+        return 1;
+    }
+
+    // Performs Swap from USDC to stETH
+    function depositUSDT(uint256 amount) external returns (uint256) {
+        // swap
+
+        // deposit
+
+        // mint
+        return 1;
+    }
+
+    // Deposit stETH for EigenPoints
+    function depositToEigenLayer(uint256 amount) external returns (uint256) {
+        return stETHVault.depositToEigenLayer(amount);
+    }
+
+    // Retrieve stETH from EigenLayer
+    function withdrawFromEigenLayer(uint256 amount) external returns (uint256) {
+        return 1;
+    }
+
+    // Trigger redemptions from Lido
+    function requestLidoWithdrawal(uint256 amount) external returns (uint256) {
+        return 1;
+    }
+
+    // Trigger redemptions from Lido
+    function withdrawStETHToETH(uint256 amount) external returns (uint256) {
+        return 1;
+    }
 }
-
-// contract PufETH is IPufETH {
-//     // Deposit stETH without swapping
-//     function depositStETH(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Performs Swap from ETH to stETH
-//     function depositETH(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Performs Swap from USDC to stETH
-//     function depositUSDC(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Performs Swap from USDC to stETH
-//     function depositUSDT(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Deposit stETH for EigenPoints
-//     function depositToEigenLayer(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Retrieve stETH from EigenLayer
-//     function withdrawFromEigenLayer(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-
-//     // Trigger redemptions from Lido
-//     function withdrawStETHToETH(uint256 amount) external returns (uint256) {
-//         return 1;
-//     }
-// }
