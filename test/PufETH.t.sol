@@ -2,68 +2,21 @@
 pragma solidity ^0.8.13;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {PufETH, IStETH, IStETHVault, IPufETHVault, IEigenLayer} from "../src/PufETH.sol";
 import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 
-interface ITestStETH is IStETH {
-    function mintFor(address who, uint256 _sharesAmount) external;
-}
+import {PufETH} from "../src/PufETH.sol";
+import {IPufETH} from "../src/interface/IPufETH.sol";
+import {IPufferPool} from "../src/interface/IPufferPool.sol";
+import {IStETH} from "../src/interface/IStETH.sol";
+import {IStETHVault} from "../src/interface/IStETHVault.sol";
+import {IPufETHVault} from "../src/interface/IPufETHVault.sol";
+import {IEigenLayer} from "../src/interface/IEigenLayer.sol";
 
-contract StETH is ERC20, ITestStETH {
-    constructor(uint256 initialSupply) ERC20("Lido's stETH", "stETH") {
-        _mint(msg.sender, initialSupply);
-    }
+import {StETH, ITestStETH} from "test/mocks/StETH.sol";
+import {EigenLayer} from "test/mocks/EigenLayer.sol";
+import {StETHVault} from "test/mocks/StETHVault.sol";
 
-    function mintFor(address who, uint256 _sharesAmount) external {
-        _mint(who, _sharesAmount);
-    }
 
-    function getPooledEthByShares(
-        uint256 _sharesAmount
-    ) external view returns (uint256) {
-        // 1:1 stETH to pufETH
-        return _sharesAmount;
-    }
-
-    function getSharesByPooledEth(
-        uint256 _pooledEthAmount
-    ) external view returns (uint256) {
-        // 1:1 stETH to pufETH
-        return _pooledEthAmount;
-    }
-
-    function submit(address _referral) external payable returns (uint256) {
-        return 1 ether;
-    }
-}
-
-contract EigenLayer is IEigenLayer {
-    IStETH public constant stETH =
-        IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-
-    function depositStETH(uint256 _stETHAmount) external returns (uint256) {
-        stETH.transferFrom(msg.sender, address(this), _stETHAmount);
-        return _stETHAmount;
-    }
-}
-
-contract StETHVault is IStETHVault {
-    uint256 MAX_APPROVAL = ~uint256(0);
-    IEigenLayer public constant EIGENLAYER =
-        IEigenLayer(0xdAC17F958D2ee523a2206206994597C13D831ec7); // todo
-
-    IStETH public constant stETH =
-        IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-
-    constructor() public {
-        stETH.approve(address(EIGENLAYER), MAX_APPROVAL);
-    }
-
-    // Deposit stETH for EigenPoints
-    function depositToEigenLayer(uint256 amount) external returns (uint256) {
-        return EIGENLAYER.depositStETH(amount);
-    }
-}
 
 contract PufETHTest is Test {
     PufETH public pufETH;

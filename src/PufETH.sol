@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
 import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
@@ -6,171 +6,17 @@ import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {ERC20Permit} from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20Permit} from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 
-interface IWithdrawalPool {
-    /**
-     * @notice Burns `pufETHAmount` and sends the ETH to `to`
-     * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
-     * @return ETH Amount redeemed
-     */
-    function withdrawETH(
-        address to,
-        uint256 pufETHAmount
-    ) external returns (uint256);
-}
+import {IPufferPool} from "src/interface/IPufferPool.sol";
+import {IWithdrawalPool} from "src/interface/IWithdrawalPool.sol";
+import {IPufETHVault} from "src/interface/IPufETHVault.sol";
+import {IStETHVault} from "src/interface/IStETHVault.sol";
+import {IStETH} from "src/interface/IStETH.sol";
+import {IStETHVault} from "src/interface/IStETHVault.sol";
+import {IUSDC} from "src/interface/IUSDC.sol";
+import {IUSDT} from "src/interface/IUSDT.sol";
+import {ILidoWithdrawalQueue} from "src/interface/ILidoWithdrawalQueue.sol";
+import {IEigenLayer} from "src/interface/IEigenLayer.sol";
 
-interface IPufferPool is IERC20 {
-    /**
-     * @notice Deposits ETH and `msg.sender` receives pufETH in return
-     * @return pufETH amount minted
-     * @dev Signature "0xf6326fb3"
-     */
-    function depositETH() external payable returns (uint256);
-
-    /**
-     * @notice Calculates the equivalent pufETH amount for a given `amount` of ETH based on the current ETH:pufETH exchange rate
-     * Suppose that the exchange rate is 1 : 1.05 and the user is wondering how much `pufETH` will he receive if he deposits `amount` ETH.
-     *
-     * outputAmount = amount * (1 / exchangeRate) // because the exchange rate is 1 to 1.05
-     * outputAmount = amount * (1 / 1.05)
-     * outputAmount = amount * 0.95238095238
-     *
-     * if the user is depositing 1 ETH, he would get 0.95238095238 pufETH in return
-     *
-     * @param amount The amount of ETH to be converted to pufETH
-     * @dev Signature "0x1b5ebe05"
-     * @return The equivalent amount of pufETH
-     */
-    function calculateETHToPufETHAmount(
-        uint256 amount
-    ) external view returns (uint256);
-
-    /**
-     * @notice Calculates the equivalent ETH amount for a given `pufETHAmount` based on the current ETH:pufETH exchange rate
-     *
-     * Suppose that the exchange rate is 1 : 1.05 and the user is wondering how much `pufETH` will he receive if he wants to redeem `pufETHAmount` worth of pufETH.
-     *
-     * outputAmount = pufETHAmount * (1.05 / 1) // because the exchange rate is 1 to 1.05 (ETH to pufETH)
-     * outputAmount = pufETHAmount * 1.05
-     *
-     * if the user is redeeming 1 pufETH, he would get 1.05 ETH in return
-     *
-     * NOTE: The calculation does not take in the account any withdrawal fee.
-     *
-     * @param pufETHAmount The amount of pufETH to be converted to ETH
-     * @dev Signature "0x149a74ed"
-     * @return The equivalent amount of ETH
-     */
-    function calculatePufETHtoETHAmount(
-        uint256 pufETHAmount
-    ) external view returns (uint256);
-}
-
-interface IUSDC is IERC20, IERC20Permit {
-    function transferWithAuthorization(
-        address,
-        address,
-        uint256,
-        uint256,
-        uint256,
-        bytes32,
-        uint8,
-        bytes32,
-        bytes32
-    ) external;
-}
-
-interface IUSDT {
-    function transfer(address to, uint256 amount) external;
-
-    function transferFrom(address from, address to, uint256 amount) external;
-
-    function approve(address spender, uint256 amount) external;
-
-    function basisPointsRate() external view returns (uint256);
-
-    function balanceOf(address) external view returns (uint256);
-}
-
-interface IStETH is IERC20 {
-    /**
-     * @return the amount of Ether that corresponds to `_sharesAmount` token shares.
-     */
-    function getPooledEthByShares(
-        uint256 _sharesAmount
-    ) external view returns (uint256);
-
-    /**
-     * @return the amount of shares that corresponds to `_ethAmount` protocol-controlled Ether.
-     */
-    function getSharesByPooledEth(
-        uint256 _pooledEthAmount
-    ) external view returns (uint256);
-
-    /**
-     * @dev Process user deposit, mints liquid tokens and increase the pool buffer
-     * @param _referral address of referral.
-     * @return amount of StETH shares generated
-     */
-    function submit(address _referral) external payable returns (uint256);
-}
-
-interface IPufETH is IERC20 {
-    // Deposit stETH without swapping
-    function depositStETH(uint256 _stETHAmount) external returns (uint256);
-
-    // Performs Swap from ETH to stETH
-    function depositETH(uint256 _ETHAmount) external returns (uint256);
-
-    // Performs Swap from USDC to stETH
-    function depositUSDC(uint256 _USDCAmount) external returns (uint256);
-
-    // Performs Swap from USDC to stETH
-    function depositUSDT(uint256 _USDTAmount) external returns (uint256);
-
-    // Deposit stETH for EigenPoints
-    function depositToEigenLayer(
-        uint256 _stETHAmount
-    ) external returns (uint256);
-
-    // Retrieve stETH from EigenLayer
-    function withdrawFromEigenLayer(
-        uint256 _stETHAmount
-    ) external returns (uint256);
-
-    // Trigger redemptions from Lido
-    function withdrawStETHToETH(
-        uint256 _stETHAmount
-    ) external returns (uint256);
-}
-
-interface IStETHVault {
-    // Deposit stETH for EigenPoints
-    function depositToEigenLayer(uint256 amount) external returns (uint256);
-}
-
-interface IPufETHVault {}
-
-interface IEigenLayer {
-    function depositStETH(uint256 _stETHAmount) external returns (uint256);
-}
-
-/**
- * @title StETH token wrapper with static balances.
- * @dev It's an ERC20 token that represents the account's share of the total
- * supply of stETH tokens. WstETH token's balance only changes on transfers,
- * unlike StETH that is also changed when oracles report staking rewards and
- * penalties. It's a "power user" token for DeFi protocols which don't
- * support rebasable tokens.
- *
- * The contract is also a trustless wrapper that accepts stETH tokens and mints
- * wstETH in return. Then the user unwraps, the contract burns user's wstETH
- * and sends user locked stETH in return.
- *
- * The contract provides the staking shortcut: user can send ETH with regular
- * transfer and get wstETH in return. The contract will send ETH to Lido submit
- * method, staking it and wrapping the received stETH.
- *
- */
 contract PufETH is ERC20Permit {
     mapping(address => uint256) public ethShares;
     uint256 public totalETHShares;
@@ -185,6 +31,8 @@ contract PufETH is ERC20Permit {
     // Input assets
     IStETH public constant stETH =
         IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    ILidoWithdrawalQueue public constant LidoWithdrawalQueue =
+        ILidoWithdrawalQueue(address(0x00)); // todo
     IUSDC public constant USDC =
         IUSDC(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IUSDT public constant USDT =
@@ -332,6 +180,7 @@ contract PufETH is ERC20Permit {
 
     // Trigger redemptions from Lido
     function requestLidoWithdrawal(uint256 amount) external returns (uint256) {
+        // ILidoWithdrawalQueue.w
         return 1;
     }
 
