@@ -57,26 +57,42 @@ contract PufETH is ERC20Permit {
     constructor()
         ERC20Permit("PufETH liquid restaking token")
         ERC20("PufETH liquid restaking token", "pufETH")
-    {
-        stETH.approve(address(EIGENLAYER), MAX_APPROVAL);
+    {}
+
+    function transitionMainnet() external {
+        // todo onlyOwner
+        isMainnet = true;
+        // todo event
     }
 
     function setPufferPool(address a) external {
+        // todo onlyOwner
+        // todo only callable once
         pufferPool = IPufferPool(a);
+        // todo event
     }
 
     function setWithdrawalPool(address a) external {
+        // todo onlyOwner
+        // todo only callable once
         withdrawalPool = IWithdrawalPool(a);
+        // todo event
     }
 
     function setStETHVault(address a) external {
+        // todo onlyOwner
+        // todo only callable once
         stETHVault = IStETHVault(a);
         stETH.approve(address(stETHVault), MAX_APPROVAL);
+        // todo event
     }
 
     function setRPufETHVault(address a) external {
+        // todo onlyOwner
+        // todo only callable once
         rPufETHVault = IPufETHVault(a);
         stETH.approve(address(rPufETHVault), MAX_APPROVAL);
+        // todo event
     }
 
     /**
@@ -92,8 +108,11 @@ contract PufETH is ERC20Permit {
      */
     function depositStETH(uint256 _stETHAmount) external returns (uint256) {
         require(_stETHAmount > 0, "insufficient stETH amount");
-        if (isMainnet) {} else {
-            uint256 pufETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
+        if (isMainnet) {
+            // todo
+        } else {
+            // uint256 pufETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
+            uint256 pufETHAmount = getPufETHByReserve(_stETHAmount);
             _mint(msg.sender, pufETHAmount);
             stETH.transferFrom(msg.sender, address(stETHVault), _stETHAmount);
             return pufETHAmount;
@@ -101,14 +120,18 @@ contract PufETH is ERC20Permit {
     }
 
     /**
-     * @notice Get amount of pufETH for a given amount of stETH
+     * @notice Get amount of pufETH for a given amount of the reserve token
      * @param _stETHAmount amount of stETH
-     * @return Amount of wstETH for a given stETH amount
+     * @return Amount of pufETH for a given stETH amount
      */
-    function getPufETHByStETH(
+    function getPufETHByReserve(
         uint256 _stETHAmount
-    ) external view returns (uint256) {
-        return stETH.getSharesByPooledEth(_stETHAmount);
+    ) public view returns (uint256) {
+        if (isMainnet) {
+            // todo
+        } else {
+            return stETH.getSharesByPooledEth(_stETHAmount);
+        }
     }
 
     /**
@@ -119,7 +142,11 @@ contract PufETH is ERC20Permit {
     function getStETHByPufETH(
         uint256 _pufETHAmount
     ) external view returns (uint256) {
-        return stETH.getPooledEthByShares(_pufETHAmount);
+        if (isMainnet) {
+            // todo
+        } else {
+            return stETH.getPooledEthByShares(_pufETHAmount);
+        }
     }
 
     /**
@@ -168,24 +195,13 @@ contract PufETH is ERC20Permit {
         return 1;
     }
 
-    // Deposit stETH for EigenPoints
-    function depositToEigenLayer(uint256 amount) external returns (uint256) {
-        return stETHVault.depositToEigenLayer(amount);
-    }
+    // // Deposit stETH for EigenPoints
+    // function depositToEigenLayer(uint256 amount) external returns (uint256) {
+    //     return stETHVault.depositToEigenLayer(amount);
+    // }
 
-    // Retrieve stETH from EigenLayer
-    function withdrawFromEigenLayer(uint256 amount) external returns (uint256) {
-        return 1;
-    }
-
-    // Trigger redemptions from Lido
-    function requestLidoWithdrawal(uint256 amount) external returns (uint256) {
-        // ILidoWithdrawalQueue.w
-        return 1;
-    }
-
-    // Trigger redemptions from Lido
-    function withdrawStETHToETH(uint256 amount) external returns (uint256) {
-        return 1;
-    }
+    // // Retrieve stETH from EigenLayer
+    // function withdrawFromEigenLayer(uint256 amount) external returns (uint256) {
+    //     return stETHVault.withdrawFromEigenLayer(amount);
+    // }
 }

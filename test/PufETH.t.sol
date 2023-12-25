@@ -86,26 +86,4 @@ contract PufETHTest is Test {
         assert(pufETH.totalSupply() == stETH.getSharesByPooledEth(amount));
         assert(pufETH.totalSupply() == amount);
     }
-
-    function test_depositEigenLayer(uint256 amount) public {
-        amount = bound(amount, 0.00001 ether, stETH.balanceOf(alice));
-        // Allow stETH to be sent to pufETH contract
-        vm.startPrank(alice);
-        stETH.approve(address(pufETH), stETH.balanceOf(alice));
-
-        // deposit stETH
-        pufETH.depositStETH(amount);
-        vm.stopPrank();
-
-        // deposit stETH to EigenLayer
-        uint256 deposited = pufETH.depositToEigenLayer(amount);
-        assertEq(deposited, amount);
-
-
-        // stETH left to EigenLayer
-        assertEq(stETH.balanceOf(address(stETHVault)), 0);
-        assertEq(stETH.balanceOf(address(EIGENLAYER)), amount);
-        assertEq(stETH.balanceOf(alice), aliceInitBalance - amount);
-        assertEq(pufETH.balanceOf(alice), amount);
-    }
 }
