@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
-import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {IStETH} from "../../src/interface/IStETH.sol";
+
+import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { IStETH } from "../../src/interface/IStETH.sol";
 
 interface ITestStETH is IStETH {
     function mintFor(address who, uint256 _sharesAmount) external;
@@ -16,16 +17,12 @@ contract StETH is ERC20, ITestStETH {
         _mint(who, _sharesAmount);
     }
 
-    function getPooledEthByShares(
-        uint256 _sharesAmount
-    ) external view returns (uint256) {
+    function getPooledEthByShares(uint256 _sharesAmount) external view returns (uint256) {
         // 1:1 stETH to pufETH
         return _sharesAmount;
     }
 
-    function getSharesByPooledEth(
-        uint256 _pooledEthAmount
-    ) external view returns (uint256) {
+    function getSharesByPooledEth(uint256 _pooledEthAmount) external view returns (uint256) {
         // 1:1 stETH to pufETH
         return _pooledEthAmount;
     }

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
-import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+
 interface IPufferPool is IERC20 {
     /**
      * @notice Deposits ETH and `msg.sender` receives pufETH in return
@@ -24,9 +25,7 @@ interface IPufferPool is IERC20 {
      * @dev Signature "0x1b5ebe05"
      * @return The equivalent amount of pufETH
      */
-    function calculateETHToPufETHAmount(
-        uint256 amount
-    ) external view returns (uint256);
+    function calculateETHToPufETHAmount(uint256 amount) external view returns (uint256);
 
     /**
      * @notice Calculates the equivalent ETH amount for a given `pufETHAmount` based on the current ETH:pufETH exchange rate
@@ -44,7 +43,5 @@ interface IPufferPool is IERC20 {
      * @dev Signature "0x149a74ed"
      * @return The equivalent amount of ETH
      */
-    function calculatePufETHtoETHAmount(
-        uint256 pufETHAmount
-    ) external view returns (uint256);
+    function calculatePufETHtoETHAmount(uint256 pufETHAmount) external view returns (uint256);
 }

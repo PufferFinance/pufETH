@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
-import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 interface IPufETH is IERC20 {
     // Deposit stETH without swapping
@@ -17,17 +17,11 @@ interface IPufETH is IERC20 {
     function depositUSDT(uint256 _USDTAmount) external returns (uint256);
 
     // Deposit stETH for EigenPoints
-    function depositToEigenLayer(
-        uint256 _stETHAmount
-    ) external returns (uint256);
+    function depositToEigenLayer(uint256 _stETHAmount) external returns (uint256);
 
     // Retrieve stETH from EigenLayer
-    function withdrawFromEigenLayer(
-        uint256 _stETHAmount
-    ) external returns (uint256);
+    function withdrawFromEigenLayer(uint256 _stETHAmount) external returns (uint256);
 
     // Trigger redemptions from Lido
-    function withdrawStETHToETH(
-        uint256 _stETHAmount
-    ) external returns (uint256);
+    function withdrawStETHToETH(uint256 _stETHAmount) external returns (uint256);
 }

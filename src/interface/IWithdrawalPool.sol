@@ -7,8 +7,5 @@ interface IWithdrawalPool {
      * @dev You need to approve `pufETHAmount` to this contract by calling pool.approve
      * @return ETH Amount redeemed
      */
-    function withdrawETH(
-        address to,
-        uint256 pufETHAmount
-    ) external returns (uint256);
+    function withdrawETH(address to, uint256 pufETHAmount) external returns (uint256);
 }

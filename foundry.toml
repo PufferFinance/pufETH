@@ -3,4 +3,14 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+[fmt]
+line_length = 120
+int_types = "long"
+tab_width = 4
+quote_style = "double"
+bracket_spacing = true
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[rpc_endpoints]
+mainnet="${ETH_RPC_URL}"

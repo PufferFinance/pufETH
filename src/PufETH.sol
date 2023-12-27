@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
-import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
-import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
-import {ERC20Permit} from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
-import {IERC20Permit} from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
+import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
+import { IERC20Permit } from "openzeppelin/token/ERC20/extensions/IERC20Permit.sol";
 
-import {IPufferPool} from "src/interface/IPufferPool.sol";
-import {IWithdrawalPool} from "src/interface/IWithdrawalPool.sol";
-import {IPufETHVault} from "src/interface/IPufETHVault.sol";
-import {IStETHVault} from "src/interface/IStETHVault.sol";
-import {IStETH} from "src/interface/IStETH.sol";
-import {IStETHVault} from "src/interface/IStETHVault.sol";
-import {IUSDC} from "src/interface/IUSDC.sol";
-import {IUSDT} from "src/interface/IUSDT.sol";
-import {ILidoWithdrawalQueue} from "src/interface/ILidoWithdrawalQueue.sol";
-import {IEigenLayer} from "src/interface/IEigenLayer.sol";
+import { IPufferPool } from "src/interface/IPufferPool.sol";
+import { IWithdrawalPool } from "src/interface/IWithdrawalPool.sol";
+import { IPufETHVault } from "src/interface/IPufETHVault.sol";
+import { IStETHVault } from "src/interface/IStETHVault.sol";
+import { IStETH } from "src/interface/IStETH.sol";
+import { IStETHVault } from "src/interface/IStETHVault.sol";
+import { IUSDC } from "src/interface/IUSDC.sol";
+import { IUSDT } from "src/interface/IUSDT.sol";
+import { ILidoWithdrawalQueue } from "src/interface/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "src/interface/IEigenLayer.sol";
 
 contract PufETH is ERC20Permit {
     mapping(address => uint256) public ethShares;
@@ -29,17 +29,12 @@ contract PufETH is ERC20Permit {
     bool public isMainnet = false;
 
     // Input assets
-    IStETH public constant stETH =
-        IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-    ILidoWithdrawalQueue public constant LidoWithdrawalQueue =
-        ILidoWithdrawalQueue(address(0x00)); // todo
-    IUSDC public constant USDC =
-        IUSDC(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    IUSDT public constant USDT =
-        IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
+    IStETH public constant stETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    ILidoWithdrawalQueue public constant LidoWithdrawalQueue = ILidoWithdrawalQueue(address(0x00)); // todo
+    IUSDC public constant USDC = IUSDC(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    IUSDT public constant USDT = IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
-    IEigenLayer public constant EIGENLAYER =
-        IEigenLayer(0xdAC17F958D2ee523a2206206994597C13D831ec7); // todo
+    IEigenLayer public constant EIGENLAYER = IEigenLayer(0xdAC17F958D2ee523a2206206994597C13D831ec7); // todo
 
     uint256 MAX_APPROVAL = ~uint256(0);
 
@@ -47,17 +42,9 @@ contract PufETH is ERC20Permit {
     // IUniswap public constant USDC_STETH = IUniswap(...);
 
     event ETHDeposited(address indexed user, uint256 shares, uint256 amount);
-    event USDDeposited(
-        address indexed user,
-        uint256 shares,
-        uint256 amount,
-        uint256 daiAmount
-    );
+    event USDDeposited(address indexed user, uint256 shares, uint256 amount, uint256 daiAmount);
 
-    constructor()
-        ERC20Permit("PufETH liquid restaking token")
-        ERC20("PufETH liquid restaking token", "pufETH")
-    {}
+    constructor() ERC20Permit("PufETH liquid restaking token") ERC20("PufETH liquid restaking token", "pufETH") { }
 
     function transitionMainnet() external {
         // todo onlyOwner
@@ -124,9 +111,7 @@ contract PufETH is ERC20Permit {
      * @param _stETHAmount amount of stETH
      * @return Amount of pufETH for a given stETH amount
      */
-    function getPufETHByReserve(
-        uint256 _stETHAmount
-    ) public view returns (uint256) {
+    function getPufETHByReserve(uint256 _stETHAmount) public view returns (uint256) {
         if (isMainnet) {
             // todo
         } else {
@@ -139,9 +124,7 @@ contract PufETH is ERC20Permit {
      * @param _pufETHAmount amount of pufETH
      * @return Amount of stETH for a given pufETH amount
      */
-    function getStETHByPufETH(
-        uint256 _pufETHAmount
-    ) external view returns (uint256) {
+    function getStETHByPufETH(uint256 _pufETHAmount) external view returns (uint256) {
         if (isMainnet) {
             // todo
         } else {

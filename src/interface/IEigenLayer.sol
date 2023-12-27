@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
-import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
-interface IStrategy {}
+interface IStrategy { }
 
 // packed struct for queued withdrawals; helps deal with stack-too-deep errors
 struct WithdrawerAndNonce {
@@ -27,11 +27,7 @@ struct QueuedWithdrawal {
 }
 
 interface IEigenLayer {
-    function depositIntoStrategy(
-        IStrategy strategy,
-        IERC20 token,
-        uint256 amount
-    ) external returns (uint256 shares);
+    function depositIntoStrategy(IStrategy strategy, IERC20 token, uint256 amount) external returns (uint256 shares);
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
