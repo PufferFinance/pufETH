@@ -29,6 +29,11 @@ struct QueuedWithdrawal {
 interface IEigenLayer {
     function depositIntoStrategy(IStrategy strategy, IERC20 token, uint256 amount) external returns (uint256 shares);
 
+    /**
+     * @notice Returns the Strategy deposits for `staker` (EigenStrategyManager)
+     */
+    function getDeposits(address staker) external view returns (IStrategy[] memory, uint256[] memory);
+
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
         IStrategy[] calldata strategies,

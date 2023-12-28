@@ -14,6 +14,8 @@ contract EigenLayer is IEigenLayer {
         return amount;
     }
 
+    function getDeposits(address staker) external view returns (IStrategy[] memory, uint256[] memory) { }
+
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
         IStrategy[] calldata strategies,
