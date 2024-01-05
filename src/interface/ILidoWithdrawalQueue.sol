@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.13;
 
+/**
+ * ILidoWithdrawalQueue
+ */
 interface ILidoWithdrawalQueue {
     function requestWithdrawals(uint256[] calldata _amounts, address _owner)
         external
         returns (uint256[] memory requestIds);
 
-    function claimWithdrawals(uint256[] calldata _requestIds, uint256[] calldata _hints) external;
+    function findCheckpointHints(uint256[] calldata _requestIds, uint256 _firstIndex, uint256 _lastIndex)
+        external
+        view
+        returns (uint256[] memory hintIds);
 
-    function unfinalizedRequestNumber() external view returns (uint256);
+    function claimWithdrawals(uint256[] memory _requestIds, uint256[] memory _hints) external;
 
     function getLastCheckpointIndex() external view returns (uint256);
 

@@ -3,6 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 struct PufferDeployment {
     address pufETHImplementation;
-    address pufETH;
+    address pufETHToken;
     address LidoVault;
 }

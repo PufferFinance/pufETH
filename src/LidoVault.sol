@@ -2,30 +2,22 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IStETH } from "src/interface/IStETH.sol";
+import { ILidoWithdrawalQueue } from "src/interface/ILidoWithdrawalQueue.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IEigenLayer, IStrategy } from "src/interface/IEigenLayer.sol";
 
-interface ILidoWithdrawalQueue {
-    function requestWithdrawals(uint256[] calldata _amounts, address _owner)
-        external
-        returns (uint256[] memory requestIds);
-
-    function findCheckpointHints(uint256[] calldata _requestIds, uint256 _firstIndex, uint256 _lastIndex)
-        external
-        view
-        returns (uint256[] memory hintIds);
-
-    function claimWithdrawals(uint256[] memory _requestIds, uint256[] memory _hints) external;
-
-    function getLastCheckpointIndex() external view returns (uint256);
-
-    function claimWithdrawal(uint256 _requestId) external;
-}
-
+/**
+ * @title LidoVault
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
 contract LidoVault is IERC721Receiver {
     using SafeERC20 for address;
 
+    /**
+     * @notice Emitted when we request withdrawals from Lido
+     */
     event RequestedWithdrawals(uint256[]);
 
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
@@ -46,6 +38,15 @@ contract LidoVault is IERC721Receiver {
     function depositStETH() external { }
 
     /**
+     * notice Deposits stETH into `stETH` EigenLayer strategy
+     * @param amount the amount of stETH to deposit
+     */
+    function depositToEigenLayer(uint256 amount) public {
+        //@todo restrict
+        _EIGEN_STRATEGY_MANAGER.depositIntoStrategy({ strategy: _EIGEN_STETH_STRATEGY, token: _ST_ETH, amount: amount });
+    }
+
+    /**
      * @notice Returns the total ETH amount locked in EigenLayer and this Vault
      */
     function getTotalBackingEthAmount() public view returns (uint256) {
@@ -58,21 +59,32 @@ contract LidoVault is IERC721Receiver {
      * @notice Returns the ETH amount that is backing this vault
      */
     function getBackingEthAmount() public view returns (uint256 ethAmount) {
-        uint256 shares = _ST_ETH.sharesOf(address(this));
-        ethAmount = _ST_ETH.getPooledEthByShares(shares);
+        ethAmount = _ST_ETH.balanceOf(address(this));
     }
 
     /**
      * @notice Returns the ETH amount that is backing this vault locked in EigenLayer stETH strategy
      */
     function getELBackingEthAmount() public view returns (uint256 ethAmount) {
+        uint256 elShares;
+        // EigenLayer returns the number of shares owned in that strategy
         (IStrategy[] memory strategies, uint256[] memory amounts) = _EIGEN_STRATEGY_MANAGER.getDeposits(address(this));
         for (uint256 i = 0; i < strategies.length; ++i) {
             if (address(strategies[i]) == address(_EIGEN_STETH_STRATEGY)) {
-                return amounts[i];
+                elShares = amounts[i];
+                break;
             }
         }
-        return 0;
+
+        // No deposits to EL
+        if (elShares == 0) {
+            return 0;
+        }
+
+        // ETH is 1:1 with stETH
+        // EL Keeps track of deposits in their own shares
+        // This is how we get the stETHAmount owned in EL
+        ethAmount = (elShares * _ST_ETH.balanceOf(address(_EIGEN_STETH_STRATEGY))) / _EIGEN_STETH_STRATEGY.totalShares();
     }
 
     /**
@@ -80,6 +92,7 @@ contract LidoVault is IERC721Receiver {
      * @param amounts An array of amounts that we want to queue
      */
     function initiateETHWithdrawals(uint256[] calldata amounts) external returns (uint256[] memory requestIds) {
+        //@todo restrict
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
         emit RequestedWithdrawals(requestIds);
         return requestIds;

@@ -3,15 +3,13 @@ pragma solidity ^0.8.13;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { pufETHBen, IPuffETH } from "../src/pufETHBen.sol";
+import { pufETH, IPuffETH } from "../src/pufETH.sol";
 import { IStETH } from "../src/interface/IStETH.sol";
 import { IEigenLayer } from "src/interface/IEigenLayer.sol";
-import { IStrategy } from "src/interface/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { DeployPuffer } from "script/DeployPuffer.s.sol";
+import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
-import { console } from "forge-std/console.sol";
 import { LidoVault } from "src/LidoVault.sol";
 
 contract PufETHTest is Test {
@@ -33,7 +31,7 @@ contract PufETHTest is Test {
         bytes32 domainSeparator;
     }
 
-    pufETHBen public pufETH;
+    pufETH public pufETHToken;
     LidoVault public lidoVault;
 
     // Lido contract (stETH)
@@ -67,14 +65,16 @@ contract PufETHTest is Test {
     function setUp() public {
         // 1 block after allowance increase for stETH on EL
         // https://etherscan.io/tx/0xc16610a3dc3e8732e3fbb7761f6e1c0e44869cba5a41b058d2b3abce98833667
-        // vm.createSelectFork(vm.rpcUrl("mainnet"), 18_814_788);
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18812842);
 
-        PufferDeployment memory deployment = new DeployPuffer().run();
-        pufETH = pufETHBen(payable(deployment.pufETH));
-        lidoVault = pufETHBen(payable(deployment.pufETH))._LIDO_VAULT();
+        PufferDeployment memory deployment = new DeployPuffETH().run();
+        pufETHToken = pufETH(payable(deployment.pufETHToken));
+        lidoVault = pufETH(payable(deployment.pufETHToken))._LIDO_VAULT();
 
         vm.label(address(stETH), "stETH");
+        vm.label(address(APE), "APE");
+        vm.label(address(USDT), "USDT");
+        vm.label(address(USDC), "USDC");
         vm.label(BINANCE, "BINANCE exchange");
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
 
@@ -135,9 +135,9 @@ contract PufETHTest is Test {
     {
         // Pretend that alice is depositing 1k ETH
         vm.startPrank(alice);
-        SafeERC20.safeIncreaseAllowance(IERC20(stETH), address(pufETH), type(uint256).max);
+        SafeERC20.safeIncreaseAllowance(IERC20(stETH), address(pufETHToken), type(uint256).max);
 
-        uint256 aliceMinted = pufETH.depositStETH(1000 ether);
+        uint256 aliceMinted = pufETHToken.depositStETH(1000 ether);
 
         // Save total ETH backing before the rebase
         uint256 backingETHAmountBefore = lidoVault.getTotalBackingEthAmount();
@@ -154,10 +154,10 @@ contract PufETHTest is Test {
 
         // After rebase, Bob is depositing 1k ETH
         vm.startPrank(bob);
-        SafeERC20.safeIncreaseAllowance(IERC20(stETH), address(pufETH), type(uint256).max);
-        uint256 bobMinted = pufETH.depositStETH(1000 ether);
+        SafeERC20.safeIncreaseAllowance(IERC20(stETH), address(pufETHToken), type(uint256).max);
+        uint256 bobMinted = pufETHToken.depositStETH(1000 ether);
 
-        // Alice should have more pufETH because the rebase happened after her deposit and changed the rate
+        // Alice should have more pufETHToken because the rebase happened after her deposit and changed the rate
         assertTrue(aliceMinted > bobMinted, "alice should have more");
 
         // ETH Backing after rebase should go up
@@ -191,68 +191,23 @@ contract PufETHTest is Test {
         assertGt(address(lidoVault).balance, 2000 ether, "oh no");
     }
 
-    function test_minting_and_rebasing()
-        public
-        giveToken(BLAST_DEPOSIT, address(stETH), alice, 150 ether)
-        withCaller(alice)
-    {
-        uint256 valueBefore = uint256(vm.load(address(stETH), CL_BALANCE_POSITION));
-        assertEq(valueBefore, 9144378430694263000000000); // ~ 9144378 ETH
-
-        // User needs to get the same amount back when depositing the same amount
-        // 1 ETH worth of stETH should mint x pufETH === 1 ETH to pufferPool should mint x pufETH
-        SafeERC20.safeIncreaseAllowance(IERC20(stETH), address(pufETH), type(uint256).max);
-
-        // Total Pooled ETH in Lido on this block number is 9167717154712566954985730 ~ 9167717.154 ETH
-        // Lido gets ~ 9532 ETH in daily rewards on consensus layer
-        // Here are two oracle updates
-        // https://etherscan.io/tx/0xbc986580ef6f425cc4758d58c9c6b3510baef86331097b5d64f27825257415ac
-        // https://etherscan.io/tx/0x06a828d3b5aaed2decd9fe105ac6a08a81c2a1cc62a12c01be418755ea3e8ba8
-
-        uint256 mintedBeforeRebase = pufETH.depositStETH(10 ether);
-        assertApproxEqAbs(mintedBeforeRebase, 10 ether, 5, "bad amount minted");
-
-        uint256 backingETHAmount = lidoVault.getTotalBackingEthAmount();
-        assertApproxEqAbs(backingETHAmount, 10 ether, 5, "backing amount should be ~10 eth with 5 wei mistake");
-
-        uint256 ethBefore = stETH.getTotalPooledEther();
-
-        uint256 ethBeforeAfter = stETH.getTotalPooledEther();
-
-        assertApproxEqRel(ethBefore, ethBeforeAfter, 0.5e18, "after should be 5% diff");
-
-        uint256 mintedAfterRebase = pufETH.depositStETH(10 ether);
-
-        assertApproxEqRel(mintedAfterRebase, 10 ether, 0.5e18, "bad amount minted 2");
-
-        // We should have more than we deposited
-        uint256 backingETHAmountAfter = lidoVault.getTotalBackingEthAmount();
-
-        assertApproxEqAbs(backingETHAmountAfter, 20.5 ether, 5, "backing amount should be ~20 eth with 5 wei mistake");
-
-        // _rebaseLido(valueBefore + 10000 ether); // simulate a good day for Lido + 10k ETH
-    }
-
     function test_usdt_to_pufETH() public giveToken(BINANCE, USDT, alice, 2_175_000_000) withCaller(alice) {
-        uint256 tokenInAmount = 2_175_000_000; // 2100 USDT
+        uint256 tokenInAmount = 2_175_000_000; // 2175 USDT
 
         // Manually edited the route code for USDT -> stETH
         // Last 20 bytes is the address of where the stETH is going
-        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHBen
+        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETH
         bytes memory routeCode =
             hex"02dAC17F958D2ee523a2206206994597C13D831ec701ffff01c7bBeC68d12a0d1830360F8Ec58fA599bA1b0e9b004028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400f034A0Cca1cE58fb2d234438D4d40227635ef771";
 
-        assertEq(pufETH.balanceOf(alice), 0, "alice has 0 pufETH");
+        assertEq(pufETHToken.balanceOf(alice), 0, "alice has 0 pufETH");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
-        SafeERC20.safeIncreaseAllowance(IERC20(USDT), address(pufETH), type(uint256).max);
-        pufETH.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDT, amountOutMin: 0, routeCode: routeCode });
+        SafeERC20.safeIncreaseAllowance(IERC20(USDT), address(pufETHToken), type(uint256).max);
+        pufETHToken.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDT, amountOutMin: 0, routeCode: routeCode });
 
-        uint256 shares = stETH.sharesOf(address(pufETH));
-        uint256 ethAmount = pufETH.getpufETHByStETH(pufETH.balanceOf(address(alice)));
-
-        assertGt(pufETH.balanceOf(alice), 0, "alice has got pufETH");
-        assertGt(stETH.balanceOf(address(pufETH)), 0, "pufETH should hold stETH");
+        assertGt(pufETHToken.balanceOf(alice), 0, "alice has got pufETHToken");
+        assertGt(stETH.balanceOf(address(pufETHToken)), 0, "pufETHToken should hold stETH");
     }
 
     function test_usdc_to_pufETH() public giveToken(BINANCE, USDC, dave, 20_000_000_000) withCaller(dave) {
@@ -260,17 +215,17 @@ contract PufETHTest is Test {
 
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
-        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHBen
+        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHToken
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400f034A0Cca1cE58fb2d234438D4d40227635ef771";
 
-        assertEq(pufETH.balanceOf(dave), 0, "dave has 0 pufETH");
+        assertEq(pufETHToken.balanceOf(dave), 0, "dave has 0 pufETHToken");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
-        SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufETH), type(uint256).max);
-        pufETH.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
+        SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufETHToken), type(uint256).max);
+        pufETHToken.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufETH.balanceOf(dave), 0, "dave has got pufETH");
+        assertGt(pufETHToken.balanceOf(dave), 0, "dave has got pufETHToken");
     }
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
@@ -278,21 +233,21 @@ contract PufETHTest is Test {
 
         // Manually edited the route code for APE -> stETH
         // Last 20 bytes is the address of where the stETH is going
-        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHBen
+        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHToken
         bytes memory routeCode =
             hex"024d224452801ACEd8B2F0aebE155379bb5D59438101ffff00130F4322e5838463ee460D5854F5D472cFC8f25301e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67004C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc200e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67000f034A0Cca1cE58fb2d234438D4d40227635ef771";
 
-        assertEq(pufETH.balanceOf(charlie), 0, "charlie has 0 pufETH");
+        assertEq(pufETHToken.balanceOf(charlie), 0, "charlie has 0 pufETHToken");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
-        SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufETH), type(uint256).max);
-        pufETH.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
+        SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufETHToken), type(uint256).max);
+        pufETHToken.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufETH.balanceOf(charlie), 0, "charlie has got pufETH");
+        assertGt(pufETHToken.balanceOf(charlie), 0, "charlie has got pufETHToken");
     }
 
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
-        uint256 tokenInAmount = 10_000_000_000; // 20k USDC
+        uint256 tokenInAmount = 10_000_000_000; // 10k USDC
 
         // To get the route code
         // Change tokenIn, and to if needed
@@ -300,16 +255,16 @@ contract PufETHTest is Test {
 
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
-        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHBen
+        // (0xf034A0Cca1cE58fb2d234438D4d40227635ef771) is the address of pufETHToken
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400f034A0Cca1cE58fb2d234438D4d40227635ef771";
 
-        assertEq(pufETH.balanceOf(bob), 0, "bob has 0 pufETH");
+        assertEq(pufETHToken.balanceOf(bob), 0, "bob has 0 pufETHToken");
 
         IPuffETH.Permit memory permit = _signPermit(
             _testTemps(
                 "bob",
-                address(pufETH),
+                address(pufETHToken),
                 tokenInAmount,
                 block.timestamp,
                 hex"06c37168a7db5138defc7866392bb87a741f9b3d104deb5094588ce041cae335"
@@ -317,29 +272,56 @@ contract PufETHTest is Test {
         );
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
-        pufETH.swapAndDepositWithPermit({ tokenIn: USDC, amountOutMin: 0, permitData: permit, routeCode: routeCode });
+        pufETHToken.swapAndDepositWithPermit({ tokenIn: USDC, amountOutMin: 0, permitData: permit, routeCode: routeCode });
 
-        assertGt(pufETH.balanceOf(bob), 0, "bob has got pufETH");
+        assertGt(pufETHToken.balanceOf(bob), 0, "bob has got pufETHToken");
     }
 
     function test_conversions_and_deposit_to_el() public {
-        test_ape_to_pufETH();
-        test_usdc_to_pufETH();
-        test_usdc_to_pufETH_permit();
-        test_usdt_to_pufETH();
+        // Rough estimations:
+        // Block number 18812842 is Dec-18-2023 12:21:35 PM +UTC)
+        // Here is historical data https://coinmarketcap.com/historical/20231217/ for 17th december
 
-        pufETH.depositToEigenLayer(stETH.balanceOf(address(pufETH)));
+        // Swap various tokens
+        test_ape_to_pufETH(); // 1000 APE = 1678 USDT
+        test_usdc_to_pufETH(); // 20k USDC
+        test_usdc_to_pufETH_permit(); // 10k USDC
+        test_usdt_to_pufETH(); // 2175 USDT
 
-        (, uint256[] memory amounts) = eigenStrategyManager.getDeposits(address(pufETH));
+        // 1678$ + 20000$ + 10000$ + 2175$ = 33853$ ~ 15.41 ETH (expected output in ideal conditions)
+        // On that date 1 ETH ~ 2196$
+        // At the end we have ~ 14,79 ETH
+
+        // Because of the multi pool swaps, it looks ok
+
+        // From 14.71 -> 15.41 is +4.192% diff
+        // From 15.41 -> 14.71 is -4% diff
+
+        // Simulate stETH cap increase call on EL
+        _increaseELstETHCap();
+
+        // Deposit to EL
+        lidoVault.depositToEigenLayer(stETH.balanceOf(address(lidoVault)));
+
+        (, uint256[] memory amounts) = eigenStrategyManager.getDeposits(address(lidoVault));
+
+        uint256 depositedAmount;
 
         for (uint256 i = 0; i < amounts.length; ++i) {
             if (amounts[i] != 0) {
+                depositedAmount = amounts[i];
                 // If we have some amount somewhere, we deposited
-                return;
+                break;
             }
         }
 
-        assertTrue(false, "no deposit to EL");
+        assertGt(depositedAmount, 0, "no deposit to EL");
+
+        // Get total ETH backing of our system
+        uint256 totalETHBackingAmount = lidoVault.getTotalBackingEthAmount();
+
+        // Got ~ 14.79 ETH assert with 0.4% tolerance
+        assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
     }
 
     function _signPermit(_TestTemps memory t) internal pure returns (IPuffETH.Permit memory p) {

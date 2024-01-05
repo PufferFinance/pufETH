@@ -6,7 +6,7 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { UpgradeableBeacon } from "openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import { pufETHBen, IPuffETH } from "src/pufETHBen.sol";
+import { pufETH, IPuffETH } from "src/pufETH.sol";
 import { LidoVault } from "src/LidoVault.sol";
 import { NoImplementation } from "src/NoImplementation.sol";
 import { IStETH } from "src/interface/IStETH.sol";
@@ -28,13 +28,13 @@ import { PufferDeployment } from "src/structs/PufferDeployment.sol";
  *
  *         PK=${deployer_pk} forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
-contract DeployPuffer is BaseScript {
+contract DeployPuffETH is BaseScript {
     IStETH stETH;
     IEigenLayer eigenStrategyManager;
 
     LidoVault lidoVault;
-    pufETHBen pufETH;
-    pufETHBen pufETHImplementation;
+    pufETH pufETHToken;
+    pufETH pufETHImplementation;
     ERC1967Proxy proxy;
     AccessManager accessManager;
 
@@ -64,25 +64,25 @@ contract DeployPuffer is BaseScript {
             vm.label(address(lidoVault), "LidoVault");
             // Puffer Service implementation
             pufETHImplementation =
-                new pufETHBen({ stETH: stETH, eigenStrategyManager: eigenStrategyManager, lidoVault: lidoVault });
+                new pufETH({ stETH: stETH, eigenStrategyManager: eigenStrategyManager, lidoVault: lidoVault });
         }
 
         NoImplementation(payable(address(proxy))).upgradeToAndCall(
-            address(pufETHImplementation), abi.encodeCall(pufETHBen.initialize, ())
+            address(pufETHImplementation), abi.encodeCall(pufETH.initialize, ())
         );
 
-        pufETH = pufETHBen(payable(address(proxy)));
+        pufETHToken = pufETH(payable(address(proxy)));
 
-        vm.serializeAddress(obj, "PufETHProxy", address(pufETH));
+        vm.serializeAddress(obj, "PufETHProxy", address(pufETHToken));
         vm.serializeAddress(obj, "PufETHImplementation", address(pufETHImplementation));
-        vm.serializeAddress(obj, "LidoVault", address(pufETH));
+        vm.serializeAddress(obj, "LidoVault", address(pufETHToken));
 
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/puffer.json");
 
         return PufferDeployment({
             pufETHImplementation: address(pufETHImplementation),
-            pufETH: address(pufETH),
+            pufETHToken: address(pufETHToken),
             LidoVault: address(lidoVault)
         });
     }
