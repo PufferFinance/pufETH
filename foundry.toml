@@ -1,7 +1,9 @@
 [profile.default]
+fs_permissions = [{ access = "read-write", path = "./"}]
 src = "src"
 out = "out"
 libs = ["lib"]
+seed = "0x1337"
 
 [fmt]
 line_length = 120

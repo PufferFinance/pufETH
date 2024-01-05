@@ -7,6 +7,12 @@ interface ILidoWithdrawalQueue {
         returns (uint256[] memory requestIds);
 
     function claimWithdrawals(uint256[] calldata _requestIds, uint256[] calldata _hints) external;
+
+    function unfinalizedRequestNumber() external view returns (uint256);
+
+    function getLastCheckpointIndex() external view returns (uint256);
+
+    function claimWithdrawal(uint256 _requestId) external;
 }
 
 /// @notice structure representing a request for withdrawal

@@ -18,13 +18,28 @@ contract StETH is ERC20, ITestStETH {
     }
 
     function getPooledEthByShares(uint256 _sharesAmount) external view returns (uint256) {
-        // 1:1 stETH to pufETH
         return _sharesAmount;
+    }
+
+    function transferShares(address _recipient, uint256 _sharesAmount) external returns (uint256) {
+        return 0;
+    }
+
+    function totalSupply() public view override(ERC20, IStETH) returns (uint256) {
+        return 0;
+    }
+
+    function getTotalPooledEther() external view returns (uint256) {
+        return 0;
     }
 
     function getSharesByPooledEth(uint256 _pooledEthAmount) external view returns (uint256) {
         // 1:1 stETH to pufETH
         return _pooledEthAmount;
+    }
+
+    function sharesOf(address _account) external view returns (uint256) {
+        return 0;
     }
 
     function submit(address _referral) external payable returns (uint256) {

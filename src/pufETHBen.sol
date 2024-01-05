@@ -4,10 +4,17 @@ pragma solidity 0.8.23;
 import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
+import { ERC20Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20PermitUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "src/interface/IStETH.sol";
+import { LidoVault } from "src/LidoVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IEigenLayer, IStrategy } from "src/interface/IEigenLayer.sol";
 import { ISushiRouter } from "src/interface/ISushiRouter.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { console } from "forge-std/console.sol";
 
 interface IPuffETH is IERC20 {
     error InvalidAmount();
@@ -23,6 +30,10 @@ interface IPuffETH is IERC20 {
         bytes32 r;
         bytes32 s;
     }
+}
+
+interface IWstETH {
+    function wrap(uint256 _stETHAmount) external returns (uint256);
 }
 
 /**
@@ -42,12 +53,14 @@ interface IPuffETH is IERC20 {
  * method, staking it and wrapping the received stETH.
  *
  */
-contract pufETHBen is ERC20Permit, IPuffETH {
+contract pufETHBen is UUPSUpgradeable, ERC20Upgradeable, ERC20PermitUpgradeable, IPuffETH {
     using SafeERC20 for address;
 
     IStETH internal immutable _ST_ETH;
+    IWstETH internal immutable _WST_ETH = IWstETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
 
     IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+    LidoVault public immutable _LIDO_VAULT;
 
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
 
@@ -56,13 +69,54 @@ contract pufETHBen is ERC20Permit, IPuffETH {
     /**
      * @param stETH address of the StETH token to wrap
      */
-    constructor(IStETH stETH, IEigenLayer eigenStrategyManager)
-        ERC20Permit("PufETH liquid restaking token")
-        ERC20("PufETH liquid restaking token", "pufETH")
-    {
+    constructor(IStETH stETH, IEigenLayer eigenStrategyManager, LidoVault lidoVault) {
         _ST_ETH = stETH;
         _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
-        _ST_ETH.approve(address(_EIGEN_STRATEGY_MANAGER), type(uint256).max);
+        _LIDO_VAULT = lidoVault;
+        _disableInitializers();
+    }
+
+    function initialize() external initializer {
+        __ERC20_init("PufETH liquid restaking token", "pufETH");
+        __ERC20Permit_init("PufETH liquid restaking token");
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), type(uint256).max);
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_VAULT), type(uint256).max);
+    }
+
+    // function calculateEthToPufETHAmount(uint256 ethAmountDeposited) public view returns (uint256) {
+    //     uint256 ownedETH = _getOwnedLidoETHAmount();
+    //     return _calculateETHToPufETHAmount(ethAmountDeposited);
+    // }
+
+    function _calculateETHToPufETHAmount(uint256 ethAmount) public view returns (uint256) {
+        // @todo
+        // Get Data from PufferProtocol, for 'normal' eth deposits
+
+        uint256 exchangeRate;
+
+        // slither-disable-next-line incorrect-equality
+        if (totalSupply() == 0) {
+            exchangeRate = FixedPointMathLib.WAD;
+        } else {
+            exchangeRate = FixedPointMathLib.divWad(_LIDO_VAULT.getBackingEthAmount(), totalSupply());
+        }
+
+        //@todo don't forget to account for eigenlayer deposits in stETH strategy contract
+
+        return FixedPointMathLib.divWad(ethAmount, exchangeRate);
+    }
+
+    function _getOwnedLidoETHAmount() internal view returns (uint256 ownedETH) {
+        uint256 shares = _ST_ETH.sharesOf(address(this));
+        ownedETH = _ST_ETH.getPooledEthByShares(shares);
+    }
+
+    function depositStETH(uint256 stETHAmount) external returns (uint256 mintedPufETH) {
+        _ST_ETH.transferFrom(msg.sender, address(this), stETHAmount);
+        uint256 shares = _ST_ETH.sharesOf(address(this));
+        mintedPufETH = _calculateETHToPufETHAmount(_ST_ETH.getPooledEthByShares(shares));
+        _ST_ETH.transferShares(address(_LIDO_VAULT), shares);
+        _mint(msg.sender, mintedPufETH);
     }
 
     /**
@@ -172,6 +226,25 @@ contract pufETHBen is ERC20Permit, IPuffETH {
         _mint(msg.sender, pufETHAmount);
     }
 
+    function _getPufETHtoETHExchangeRate() internal view returns (uint256) {
+        uint256 pufETHTotalSupply = 0;
+
+        // slither-disable-next-line incorrect-equality
+        if (pufETHTotalSupply == 0) {
+            return FixedPointMathLib.WAD;
+        }
+
+        return FixedPointMathLib.divWad((0 + 0), pufETHTotalSupply);
+    }
+
+    // // function _wrap(uint256 stETHAmount) internal returns (uint256 pufETHAmount) {
+    // //     uint256 totalLidoETH = _ST_ETH.getTotalPooledEther(); // eth amount, total supply
+    // //     uint256 totalLidoShares = _ST_ETH.getTotalShares(); //
+
+    // //     pufETHAmount = _ST_ETH.getSharesByPooledEth(stETHAmount);
+    // //     _mint(msg.sender, pufETHAmount);
+    // // }
+
     /**
      * @notice Get amount of pufETH for a given amount of stETH
      * @param _stETHAmount amount of stETH
@@ -204,5 +277,9 @@ contract pufETHBen is ERC20Permit, IPuffETH {
      */
     function tokensPerStEth() external view returns (uint256) {
         return _ST_ETH.getSharesByPooledEth(1 ether);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal virtual override {
+        //@todo anybody can do it
     }
 }
