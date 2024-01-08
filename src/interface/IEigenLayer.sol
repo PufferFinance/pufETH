@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.13;
+pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
-interface IStrategy { }
+interface IStrategy {
+    /**
+     * @notice Returns the total number of shares in the EL Strategy
+     */
+    function totalShares() external view returns (uint256);
+}
 
 // packed struct for queued withdrawals; helps deal with stack-too-deep errors
 struct WithdrawerAndNonce {
