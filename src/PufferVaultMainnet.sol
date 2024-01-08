@@ -36,7 +36,7 @@ contract PufferVaultMainnet is PufferVault {
      */
     function totalAssets() public view virtual override returns (uint256) {
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + _WETH.balanceOf(address(this))
-            + address(this).balance; //@todo when you add oracle + pufferOracle.getEthAmount() + pufferOracle.getLockedEthAmount()
+            + address(this).balance; //@todo when you add oracle pufferOracle.getLockedEthAmount()
     }
 
     //@todo weth wrapping and unwrapping logic, native ETH deposit method

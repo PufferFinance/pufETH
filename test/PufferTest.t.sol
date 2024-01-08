@@ -153,7 +153,6 @@ contract PufferTest is Test {
         PufferVaultMainnet newImplementation = new PufferVaultMainnet();
 
         vm.startPrank(PUFFER_DAO);
-        (PUFFER_DAO);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
         );
@@ -205,6 +204,8 @@ contract PufferTest is Test {
         uint256 stethBalanceBefore = IERC20(stETH).balanceOf(address(pufferVault));
 
         _rebaseLido();
+        
+        assertTrue(pufferVault.totalAssets() > backingETHAmountBefore, "eth backing went down");
 
         // Check the balance after rebase and assert that it increased
         uint256 stethBalanceAfter = IERC20(stETH).balanceOf(address(pufferVault));
@@ -311,7 +312,7 @@ contract PufferTest is Test {
 
         // To get the route code
         // Change tokenIn, and to if needed
-        // https://swap.sushi.com/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=AdEa807cE68B17a32cE7CB80757c1B16cBca7887&amount=2000000000&maxPriceImpact=0.005&gasPrice=33538046487&to=AdEa807cE68B17a32cE7CB80757c1B16cBca7887&preferSushi=false
+        // https://swap.sushi.com/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&amount=2000000000&maxPriceImpact=0.005&gasPrice=33538046487&to=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&preferSushi=false
 
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
