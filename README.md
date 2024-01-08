@@ -1,66 +1,25 @@
-## Foundry
+# <h1 align="center"> Puffer Vault </h1> 
+[![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
+  [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+[Website-badge]: https://img.shields.io/badge/WEBSITE-8A2BE2
+[Website]: https://www.puffer.fi
+[X-badge]: https://img.shields.io/twitter/follow/puffer_finance
+[X]: https://twitter.com/puffer_finance
+[discord]: https://discord.gg/pufferfi
+[docs-badge]: https://img.shields.io/badge/DOCS-8A2BE2
+[docs]: https://docs.puffer.fi/
+[discord-badge]: https://dcbadge.vercel.app/api/server/pufferfi?style=flat
+[gha]: https://github.com/PufferFinance/PufferPool/actions
+[gha-badge]: https://github.com/PufferFinance/PufferPool/actions/workflows/ci.yml/badge.svg
+[foundry]: https://getfoundry.sh
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-Foundry consists of:
+# Tests
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+<strong>Make sure you have access to a valid archive node RPC for ETH Mainnet (e.g. Infura)</strong>
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+Installing dependencies and running tests can be executed running:
 ```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+ETH_RPC_URL=https://mainnet.infura.io/v3/YOUR_KEY forge test -vvvv
 ```
