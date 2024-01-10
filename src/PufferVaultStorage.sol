@@ -12,6 +12,7 @@ abstract contract PufferVaultStorage {
     bytes32 private constant ERC4626StorageLocation = 0x6d4971415142040fa945ebf44b5dec920e7693eb61c9c44e4167ab643762ec00;
 
     function _getPufferVaultStorage() internal pure returns (VaultStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := ERC4626StorageLocation
         }

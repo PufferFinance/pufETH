@@ -20,7 +20,6 @@
     "func-named-parameters": "error",
     "func-param-name-mixedcase": "error",
     "modifier-name-mixedcase": "error",
-    "private-vars-leading-underscore": "error",
     "code-complexity": "error",
     "explicit-types": "error"
   }

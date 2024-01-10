@@ -3,22 +3,15 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20Permit } from "openzeppelin/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { ERC20Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import { ERC20PermitUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IEigenLayer, IStrategy } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { ISushiRouter } from "src/interface/Other/ISushiRouter.sol";
 import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @title PufferDepositor
@@ -216,6 +209,7 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
     }
 
     function _getDepositorStorage() private pure returns (DepositorStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := _DEPOSITOR_STORAGE_LOCATION
         }
