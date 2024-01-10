@@ -8,6 +8,8 @@ interface IStrategy {
      * @notice Returns the total number of shares in the EL Strategy
      */
     function totalShares() external view returns (uint256);
+
+    function userUnderlying(address user) external view returns (uint256);
 }
 
 // packed struct for queued withdrawals; helps deal with stack-too-deep errors

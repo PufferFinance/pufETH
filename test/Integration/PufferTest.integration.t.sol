@@ -3,13 +3,14 @@ pragma solidity ^0.8.13;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { PufferOracle } from "../src/PufferOracle.sol";
-import { IStETH } from "../src/interface/IStETH.sol";
-import { IEigenLayer } from "src/interface/IEigenLayer.sol";
+import { PufferDepositor } from "../../src/PufferDepositor.sol";
+import { PufferVaultMainnet } from "../../src/PufferVaultMainnet.sol";
+import { PufferOracle } from "../../src/PufferOracle.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
+import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
@@ -204,7 +205,7 @@ contract PufferTest is Test {
         uint256 stethBalanceBefore = IERC20(stETH).balanceOf(address(pufferVault));
 
         _rebaseLido();
-        
+
         assertTrue(pufferVault.totalAssets() > backingETHAmountBefore, "eth backing went down");
 
         // Check the balance after rebase and assert that it increased
@@ -237,9 +238,13 @@ contract PufferTest is Test {
         amounts[1] = 1000 ether; // steth Amount
         amounts[2] = balance - 2000 ether; // the test
 
+        uint256 assetsBefore = pufferVault.totalAssets();
+
         // Initiate Withdrawals from lido
         vm.startPrank(PUFFER_DAO);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
+
+        assertApproxEqRel(assetsBefore, pufferVault.totalAssets(), 0.001e18, "bad accounting");
 
         // Finalize them and fast forward to +10 days
         _finalizeWithdrawals(requestIds[2]);
@@ -322,7 +327,7 @@ contract PufferTest is Test {
 
         assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufferDepositor");
 
-        PufferDepositor.Permit memory permit = _signPermit(
+        IPufferDepositor.Permit memory permit = _signPermit(
             _testTemps(
                 "bob",
                 address(pufferDepositor),
@@ -391,14 +396,32 @@ contract PufferTest is Test {
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
     }
 
-    function _signPermit(_TestTemps memory t) internal pure returns (PufferDepositor.Permit memory p) {
+    function test_eigenlayer_cap_reached()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+    {
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
+
+        vm.startPrank(PUFFER_DAO);
+        // EL Reverts
+        vm.expectRevert("Pausable: index is paused");
+        pufferVault.depositToEigenLayer(1000 ether);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(pufferVault.totalAssets(), 1000 ether, 1, "should have 1k ether after");
+    }
+
+    function _signPermit(_TestTemps memory t) internal pure returns (IPufferDepositor.Permit memory p) {
         bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
         bytes32 domainSeparator = t.domainSeparator;
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
 
         return
-            PufferDepositor.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+            IPufferDepositor.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline, bytes32 domainSeparator)

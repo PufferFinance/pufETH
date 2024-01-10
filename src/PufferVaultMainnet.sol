@@ -2,9 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVault } from "src/PufferVault.sol";
-import { IWETH } from "src/interface/IWETH.sol";
-import { ILidoWithdrawalQueue } from "src/interface/ILidoWithdrawalQueue.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IWETH } from "src/interface/Other/IWETH.sol";
 
 /**
  * @title PufferVault
@@ -52,6 +50,7 @@ contract PufferVaultMainnet is PufferVault {
         }
 
         uint256 shares = previewWithdraw(assets);
+        // solhint-disable-next-line func-named-parameters
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return shares;
@@ -68,6 +67,7 @@ contract PufferVaultMainnet is PufferVault {
         }
 
         uint256 assets = previewRedeem(shares);
+        // solhint-disable-next-line func-named-parameters
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return assets;
@@ -87,6 +87,7 @@ contract PufferVaultMainnet is PufferVault {
 
     function _getERC4626StorageInternal() internal pure returns (ERC4626Storage storage $) {
         // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ERC4626")) - 1)) & ~bytes32(uint256(0xff))
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := 0x0773e532dfede91f04b12a73d3d2acd361424f41f76b4fb79f090161e36b4e00
         }

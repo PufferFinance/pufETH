@@ -19,6 +19,13 @@ interface ILidoWithdrawalQueue {
     function getLastCheckpointIndex() external view returns (uint256);
 
     function claimWithdrawal(uint256 _requestId) external;
+
+    function getLockedEtherAmount() external view returns (uint256);
+
+    function getClaimableEther(uint256[] calldata _requestIds, uint256[] calldata _hints)
+        external
+        view
+        returns (uint256[] memory claimableEthValues);
 }
 
 /// @notice structure representing a request for withdrawal
