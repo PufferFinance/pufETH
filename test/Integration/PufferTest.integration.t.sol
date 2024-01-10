@@ -3,14 +3,14 @@ pragma solidity ^0.8.13;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { PufferOracle } from "../src/PufferOracle.sol";
-import { IStETH } from "../src/interface/Lido/IStETH.sol";
-import { IPufferDepositor } from "../src/interface/IPufferDepositor.sol";
+import { PufferDepositor } from "../../src/PufferDepositor.sol";
+import { PufferVaultMainnet } from "../../src/PufferVaultMainnet.sol";
+import { PufferOracle } from "../../src/PufferOracle.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
@@ -394,6 +394,24 @@ contract PufferTest is Test {
 
         // Got ~ 14.79 ETH assert with 0.4% tolerance
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
+    }
+
+    function test_eigenlayer_cap_reached()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+    {
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
+
+        vm.startPrank(PUFFER_DAO);
+        // EL Reverts
+        vm.expectRevert("Pausable: index is paused");
+        pufferVault.depositToEigenLayer(1000 ether);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(pufferVault.totalAssets(), 1000 ether, 1, "should have 1k ether after");
     }
 
     function _signPermit(_TestTemps memory t) internal pure returns (IPufferDepositor.Permit memory p) {
