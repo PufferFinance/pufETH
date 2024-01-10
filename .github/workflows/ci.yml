@@ -1,0 +1,58 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  # tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - name: Install Foundry
+  #       uses: foundry-rs/foundry-toolchain@v1
+
+  #     - name: Install deps
+  #       run: forge install
+
+  #     - name: Run tests
+  #       run: forge test -vvv --match-path './test/unit/*'
+
+  #     # - name: Check gas snapshots
+  #     #   run: forge snapshot 
+  
+  slither: 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: crytic/slither-action@v0.3.0
+        with:
+          node-version: 16
+
+  solhint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+      - name: Install solhint
+        run: npm i -g solhint
+      - name: Run solhint
+        run: solhint 'src/*.sol'
+
+  codespell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run CodeSpell
+        uses: codespell-project/actions-codespell@v2.0
+        with:
+          check_hidden: true
+          check_filenames: true
+          skip: package-lock.json,*.pdf,./.git
+
