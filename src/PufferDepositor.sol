@@ -10,11 +10,13 @@ import { ERC20Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC2
 import { ERC20PermitUpgradeable } from
     "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IStETH } from "src/interface/IStETH.sol";
+import { IStETH } from "src/interface/Lido/IStETH.sol";
+import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IEigenLayer, IStrategy } from "src/interface/IEigenLayer.sol";
-import { ISushiRouter } from "src/interface/ISushiRouter.sol";
+import { IEigenLayer, IStrategy } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { ISushiRouter } from "src/interface/Other/ISushiRouter.sol";
+import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { console } from "forge-std/console.sol";
 
@@ -23,44 +25,16 @@ import { console } from "forge-std/console.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferDepositor is AccessManagedUpgradeable, UUPSUpgradeable {
+contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgradeable {
     using SafeERC20 for address;
-
-    /**
-     * @dev Error indicating that the token is not allowed.
-     */
-    error TokenNotAllowed(address token);
-
-    /**
-     * @dev Event indicating that the token is allowed.
-     */
-    event TokenAllowed(IERC20 token);
-    /**
-     * @dev Event indicating that the token is disallowed.
-     */
-    event TokenDisallowed(IERC20 token);
-
-    /**
-     * @dev Struct representing a permit for a specific action.
-     */
-    struct Permit {
-        address owner;
-        uint256 deadline;
-        uint256 amount;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
 
     IERC20 internal constant _USDT = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     IERC20 internal constant _USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-    ISushiRouter internal constant _SUSHI_ROUTER = ISushiRouter(0x5550D13389bB70F45fCeF58f19f6b6e87F6e747d);
+    IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
-    // Sushi router uses this address to represent native ETH
-    // slither-disable-next-line unused-state
-    address constant _ETH_NATIVE_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    ISushiRouter internal constant _SUSHI_ROUTER = ISushiRouter(0x5550D13389bB70F45fCeF58f19f6b6e87F6e747d);
 
     /**
      * @dev The Puffer Vault contract address
@@ -146,7 +120,7 @@ contract PufferDepositor is AccessManagedUpgradeable, UUPSUpgradeable {
     function swapAndDepositWithPermit(
         address tokenIn,
         uint256 amountOutMin,
-        Permit calldata permitData,
+        IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
     ) public virtual returns (uint256 pufETHAmount) {
         DepositorStorage storage $ = _getDepositorStorage();
@@ -180,6 +154,28 @@ contract PufferDepositor is AccessManagedUpgradeable, UUPSUpgradeable {
         });
 
         return _PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
+    }
+
+    /**
+     * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
+     * @param permitData The permit data containing the approval information
+     * @return pufETHAmount The amount of pufETH received from the deposit
+     */
+    function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount) {
+        try ERC20Permit(address(_WST_ETH)).permit({
+            owner: permitData.owner,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
+
+        SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
+        uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
+
+        return _PUFFER_VAULT.deposit(stETHAmount, msg.sender);
     }
 
     /**

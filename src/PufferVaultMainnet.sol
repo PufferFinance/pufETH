@@ -2,9 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVault } from "src/PufferVault.sol";
-import { IWETH } from "src/interface/IWETH.sol";
-import { ILidoWithdrawalQueue } from "src/interface/ILidoWithdrawalQueue.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IWETH } from "src/interface/Other/IWETH.sol";
 
 /**
  * @title PufferVault
