@@ -9,37 +9,5 @@ interface ILidoWithdrawalQueue {
         external
         returns (uint256[] memory requestIds);
 
-    function findCheckpointHints(uint256[] calldata _requestIds, uint256 _firstIndex, uint256 _lastIndex)
-        external
-        view
-        returns (uint256[] memory hintIds);
-
-    function claimWithdrawals(uint256[] memory _requestIds, uint256[] memory _hints) external;
-
-    function getLastCheckpointIndex() external view returns (uint256);
-
     function claimWithdrawal(uint256 _requestId) external;
-
-    function getLockedEtherAmount() external view returns (uint256);
-
-    function getClaimableEther(uint256[] calldata _requestIds, uint256[] calldata _hints)
-        external
-        view
-        returns (uint256[] memory claimableEthValues);
-}
-
-/// @notice structure representing a request for withdrawal
-struct WithdrawalRequest {
-    /// @notice sum of the all stETH submitted for withdrawals including this request
-    uint128 cumulativeStETH;
-    /// @notice sum of the all shares locked for withdrawal including this request
-    uint128 cumulativeShares;
-    /// @notice address that can claim or transfer the request
-    address owner;
-    /// @notice block.timestamp when the request was created
-    uint40 timestamp;
-    /// @notice flag if the request was claimed
-    bool claimed;
-    /// @notice timestamp of last oracle report for this request
-    uint40 reportTimestamp;
 }

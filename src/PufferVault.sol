@@ -4,10 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferVault } from "src/interface/IPufferVault.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { PufferVaultStorage } from "src/PufferVaultStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import { IEigenLayer, IStrategy } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { AccessManagedUpgradeable } from
@@ -31,16 +32,21 @@ contract PufferVault is
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for address;
 
-    /**
-     * @dev Ethereum Mainnet addresses
-     */
-    IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
-    IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
-    IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-    ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
-        ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
+    IStrategy internal immutable _EIGEN_STETH_STRATEGY;
+    IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+    IStETH internal immutable _ST_ETH;
+    ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
-    constructor() {
+    constructor(
+        IStETH stETH,
+        ILidoWithdrawalQueue lidoWithdrawalQueue,
+        IStrategy stETHStrategy,
+        IEigenLayer eigenStrategyManager
+    ) {
+        _ST_ETH = stETH;
+        _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
+        _EIGEN_STETH_STRATEGY = stETHStrategy;
+        _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
         // Approve stETH to Lido && EL
         _disableInitializers();
     }

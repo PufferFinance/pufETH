@@ -24,7 +24,7 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
     IERC20 internal constant _USDT = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     IERC20 internal constant _USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
-    IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IStETH internal immutable _ST_ETH;
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
     ISushiRouter internal constant _SUSHI_ROUTER = ISushiRouter(0x5550D13389bB70F45fCeF58f19f6b6e87F6e747d);
@@ -54,8 +54,9 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
         mapping(IERC20 token => bool allowed) allowedTokens;
     }
 
-    constructor(PufferVault pufferVault) {
+    constructor(PufferVault pufferVault, IStETH stETH) {
         _PUFFER_VAULT = pufferVault;
+        _ST_ETH = stETH;
         _disableInitializers();
     }
 

@@ -2,6 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVault } from "src/PufferVault.sol";
+import { IStETH } from "src/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
 
 /**
@@ -13,7 +17,16 @@ contract PufferVaultMainnet is PufferVault {
     // slither-disable-next-line unused-state
     IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-    constructor() {
+    constructor(
+        IStETH stETH,
+        ILidoWithdrawalQueue lidoWithdrawalQueue,
+        IStrategy stETHStrategy,
+        IEigenLayer eigenStrategyManager
+    ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
+        _ST_ETH = stETH;
+        _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
+        _EIGEN_STETH_STRATEGY = stETHStrategy;
+        _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
         // Approve stETH to Lido && EL
         _disableInitializers();
     }

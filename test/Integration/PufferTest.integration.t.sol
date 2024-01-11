@@ -16,8 +16,21 @@ import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { IStETH } from "src/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 
 contract PufferTest is Test {
+    /**
+     * @dev Ethereum Mainnet addresses
+     */
+    IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
+    IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
+    IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
+        ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
+
     using stdStorage for StdStorage;
 
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -151,7 +164,8 @@ contract PufferTest is Test {
     function _upgradeToMainnetPuffer() internal {
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultMainnet newImplementation = new PufferVaultMainnet();
+        PufferVaultMainnet newImplementation =
+            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
 
         vm.startPrank(PUFFER_DAO);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
@@ -375,19 +389,7 @@ contract PufferTest is Test {
         vm.startPrank(PUFFER_DAO);
         pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
 
-        (, uint256[] memory amounts) = eigenStrategyManager.getDeposits(address(pufferVault));
-
-        uint256 depositedAmount;
-
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            if (amounts[i] != 0) {
-                depositedAmount = amounts[i];
-                // If we have some amount somewhere, we deposited
-                break;
-            }
-        }
-
-        assertGt(depositedAmount, 0, "no deposit to EL");
+        assertGt(_EIGEN_STETH_STRATEGY.userUnderlying(address(pufferVault)), 0, "no deposit to EL from the Vault");
 
         // Get total ETH backing of our system
         uint256 totalETHBackingAmount = pufferVault.totalAssets();
