@@ -112,7 +112,6 @@ contract PufferVault is
      * @notice Returns the ETH amount that is backing this vault locked in EigenLayer stETH strategy
      */
     function getELBackingEthAmount() public view virtual returns (uint256 ethAmount) {
-        // EigenLayer returns the number of shares owned in that strategy
         return _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
     }
 
