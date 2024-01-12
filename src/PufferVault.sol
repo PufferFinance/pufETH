@@ -78,7 +78,6 @@ contract PufferVault is
         // Tell our receive() that we are doing a Lido claim
         $.isLidoWithdrawal = true;
 
-        //@todo can probably be optimized
         for (uint256 i = 0; i < requestIds.length; ++i) {
             // slither-disable-next-line calls-loop
             _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
@@ -131,7 +130,7 @@ contract PufferVault is
     }
 
     /**
-     * notice Deposits stETH into `stETH` EigenLayer strategy
+     * @notice Deposits stETH into `stETH` EigenLayer strategy
      * @param amount the amount of stETH to deposit
      */
     function depositToEigenLayer(uint256 amount) external virtual restricted {
@@ -168,6 +167,10 @@ contract PufferVault is
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    // slither-disable-next-line dead-code
+    /**
+     * @dev Authorizes an upgrade to a new implementation
+     * Restricted access
+     * @param newImplementation The address of the new implementation
+     */
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

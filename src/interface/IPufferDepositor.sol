@@ -34,4 +34,31 @@ interface IPufferDepositor {
         bytes32 r;
         bytes32 s;
     }
+
+    /**
+     * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
+     * @param tokenIn The address of the token being swapped
+     * @param amountIn The amount of `tokenIn` to swap
+     * @param amountOutMin The minimum amount of stETH to receive from the swap
+     * @param routeCode The encoded route for the swap
+     * @return pufETHAmount The amount of pufETH received from the deposit
+     */
+    function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
+        external
+        returns (uint256 pufETHAmount);
+
+    /**
+     * @notice Swaps `permitData.amount` of `tokenIn` for stETH using a permit and deposits it into the Puffer Vault
+     * @param tokenIn The address of the token being swapped
+     * @param amountOutMin The minimum amount of stETH to receive from the swap
+     * @param permitData The permit data containing the approval information
+     * @param routeCode The encoded route for the swap
+     * @return pufETHAmount The amount of pufETH received from the deposit
+     */
+    function swapAndDepositWithPermit(
+        address tokenIn,
+        uint256 amountOutMin,
+        IPufferDepositor.Permit calldata permitData,
+        bytes calldata routeCode
+    ) external returns (uint256 pufETHAmount);
 }

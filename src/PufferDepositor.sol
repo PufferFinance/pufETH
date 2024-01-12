@@ -9,6 +9,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { PufferVault } from "src/PufferVault.sol";
+import { PufferDepositorStorage } from "src/PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISushiRouter } from "src/interface/Other/ISushiRouter.sol";
 import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
@@ -18,7 +19,7 @@ import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgradeable {
+contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessManagedUpgradeable, UUPSUpgradeable {
     using SafeERC20 for address;
 
     IERC20 internal constant _USDT = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
@@ -32,48 +33,23 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
     /**
      * @dev The Puffer Vault contract address
      */
-    PufferVault public immutable _PUFFER_VAULT;
-
-    /**
-     * @custom:storage-location erc7201:PufferDepositor.storage
-     * @dev +-----------------------------------------------------------+
-     *      |                                                           |
-     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
-     *      |                                                           |
-     *      +-----------------------------------------------------------+
-     */
-    // keccak256(abi.encode(uint256(keccak256("PufferDepositor.storage")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _DEPOSITOR_STORAGE_LOCATION =
-        0x5049f1e65454f7e13e70ec95efa125d25c296b5dfc70ade7425c2ab823e3e200;
-
-    struct DepositorStorage {
-        /**
-         * @dev Allowed Tokens
-         * Slot 0
-         */
-        mapping(IERC20 token => bool allowed) allowedTokens;
-    }
+    PufferVault public immutable PUFFER_VAULT;
 
     constructor(PufferVault pufferVault, IStETH stETH) {
-        _PUFFER_VAULT = pufferVault;
+        PUFFER_VAULT = pufferVault;
         _ST_ETH = stETH;
         _disableInitializers();
     }
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_PUFFER_VAULT), type(uint256).max);
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(PUFFER_VAULT), type(uint256).max);
         _allowToken(_USDT);
         _allowToken(_USDC);
     }
 
     /**
-     * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
-     * @param tokenIn The address of the token being swapped
-     * @param amountIn The amount of `tokenIn` to swap
-     * @param amountOutMin The minimum amount of stETH to receive from the swap
-     * @param routeCode The encoded route for the swap
-     * @return pufETHAmount The amount of pufETH received from the deposit
+     * @inheritdoc IPufferDepositor
      */
     function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
         public
@@ -100,16 +76,11 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
             route: routeCode
         });
 
-        return _PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
+        return PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
     }
 
     /**
-     * @notice Swaps `permitData.amount` of `tokenIn` for stETH using a permit and deposits it into the Puffer Vault
-     * @param tokenIn The address of the token being swapped
-     * @param amountOutMin The minimum amount of stETH to receive from the swap
-     * @param permitData The permit data containing the approval information
-     * @param routeCode The encoded route for the swap
-     * @return pufETHAmount The amount of pufETH received from the deposit
+     * @inheritdoc IPufferDepositor
      */
     function swapAndDepositWithPermit(
         address tokenIn,
@@ -147,7 +118,7 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
             route: routeCode
         });
 
-        return _PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
+        return PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
     }
 
     /**
@@ -169,7 +140,7 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
         SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
         uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
 
-        return _PUFFER_VAULT.deposit(stETHAmount, msg.sender);
+        return PUFFER_VAULT.deposit(stETHAmount, msg.sender);
     }
 
     /**
@@ -207,12 +178,5 @@ contract PufferDepositor is IPufferDepositor, AccessManagedUpgradeable, UUPSUpgr
         DepositorStorage storage $ = _getDepositorStorage();
         $.allowedTokens[token] = false;
         emit TokenDisallowed(token);
-    }
-
-    function _getDepositorStorage() private pure returns (DepositorStorage storage $) {
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            $.slot := _DEPOSITOR_STORAGE_LOCATION
-        }
     }
 }

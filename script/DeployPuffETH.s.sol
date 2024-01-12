@@ -15,11 +15,11 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { TimelockController } from "openzeppelin/governance/TimelockController.sol";
 import { StETHMockERC20 } from "test/mocks/stETHMock.sol";
 import { LidoWithdrawalQueueMock } from "test/mocks/LidoWithdrawalQueueMock.sol";
 import { stETHStrategyMock } from "test/mocks/stETHStrategyMock.sol";
 import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title DeployPuffer
@@ -38,6 +38,9 @@ import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
  *         PK=${deployer_pk} forge script script/DeployPuffETH.s.sol:DeployPuffETH -vvvv --rpc-url=... --broadcast
  */
 contract DeployPuffETH is BaseScript {
+    uint64 constant ROLE_ID_UPGRADER = 1;
+    uint64 constant ROLE_ID_OPERATIONS = 22;
+
     /**
      * @dev Ethereum Mainnet addresses
      */
@@ -60,6 +63,9 @@ contract DeployPuffETH is BaseScript {
     AccessManager accessManager;
 
     address stETHAddress;
+
+    address operationsMultisig = makeAddr("operations"); //@todo this
+    address communityMultisig = _broadcaster;
 
     function run() public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
@@ -117,6 +123,8 @@ contract DeployPuffETH is BaseScript {
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/puffer.json");
 
+        _setupAccess();
+
         return PufferDeployment({
             accessManager: address(accessManager),
             pufferDepositorImplementation: address(pufferDepositorImplementation),
@@ -126,6 +134,76 @@ contract DeployPuffETH is BaseScript {
             pufferOracle: address(pufferOracle),
             stETH: stETHAddress
         });
+    }
+
+    function _setupAccess() internal {
+        bytes[] memory upgraderCalldatas = _setupUpgrader();
+        bytes[] memory otherCalldatas = _setupOther();
+
+        bytes[] memory calldatas = new bytes[](upgraderCalldatas.length + otherCalldatas.length);
+
+        // start index is 0
+        for (uint256 i = 0; i < upgraderCalldatas.length; ++i) {
+            calldatas[i] = upgraderCalldatas[i];
+        }
+
+        // start index is the one that ran previously (upgraderCalldatas.length)
+        for (uint256 i = 0; i < otherCalldatas.length; ++i) {
+            uint256 idx = upgraderCalldatas.length + i;
+            calldatas[idx] = otherCalldatas[i];
+        }
+
+        accessManager.multicall(calldatas);
+    }
+
+    function _setupUpgrader() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](4);
+
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
+
+        // Restrict that selector on the Vault and Depositor
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_UPGRADER
+        );
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(pufferDepositor), selectors, ROLE_ID_UPGRADER
+        );
+
+        // Grant roles to operations & community
+
+        // Operations Multisig has 7 day delay
+        uint256 delayInSeconds = 604800; // 7 days
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_UPGRADER, operationsMultisig, delayInSeconds
+        );
+
+        // Community has 0 delay
+        calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_UPGRADER, communityMultisig, 0);
+
+        return calldatas;
+    }
+
+    function _setupOther() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](3);
+
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = PufferVault.depositToEigenLayer.selector;
+        selectors[1] = PufferVault.initiateETHWithdrawalsFromLido.selector;
+
+        // Setup setup role
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_OPERATIONS
+        );
+
+        // Setup role members (no delay)
+        calldatas[1] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS, operationsMultisig, 0);
+        calldatas[2] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS, communityMultisig, 0);
+
+        return calldatas;
     }
 
     function _getArgs()

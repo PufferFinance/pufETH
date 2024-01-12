@@ -19,6 +19,9 @@ contract PufETHTest is ERC4626Test {
     PufferOracle public pufferOracle;
     IStETH public stETH;
 
+    address operationsMultisig = makeAddr("operations");
+    address communityMultisig = makeAddr("community");
+
     function setUp() public override {
         PufferDeployment memory deployment = new DeployPuffETH().run();
 
@@ -39,8 +42,11 @@ contract PufETHTest is ERC4626Test {
         StETHMockERC20(address(stETH)).mint(address(this), 2000 ether);
         stETH.approve(address(pufferVault), type(uint256).max);
 
+        // Deposit works
         assertEq(pufferVault.deposit(1000 ether, address(this)), 1000 ether, "deposit");
+        assertEq(pufferVault.mint(1000 ether, address(this)), 1000 ether, "mint");
 
+        // Getters work
         assertEq(pufferVault.asset(), address(stETH), "bad asset");
         assertEq(pufferVault.totalAssets(), stETH.balanceOf(address(pufferVault)), "bad assets");
         assertEq(pufferVault.convertToShares(1 ether), 1 ether, "bad conversion");
@@ -49,11 +55,11 @@ contract PufETHTest is ERC4626Test {
         assertEq(pufferVault.previewDeposit(1 ether), 1 ether, "preview shares");
         assertEq(pufferVault.maxMint(address(5)), type(uint256).max, "max mint");
         assertEq(pufferVault.previewMint(1 ether), 1 ether, "preview mint");
-        assertEq(pufferVault.mint(1000 ether, address(this)), 1000 ether, "mint");
         assertEq(pufferVault.previewWithdraw(1000 ether), 1000 ether, "preview withdraw");
         assertEq(pufferVault.maxRedeem(address(this)), 2000 ether, "maxRedeem");
         assertEq(pufferVault.previewRedeem(1000 ether), 1000 ether, "previewRedeem");
 
+        // Withdrawals are disabled
         vm.expectRevert(IPufferVault.WithdrawalsAreDisabled.selector);
         pufferVault.withdraw(1000 ether, address(this), address(this));
 

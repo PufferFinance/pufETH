@@ -11,6 +11,7 @@ import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
@@ -86,7 +87,8 @@ contract PufferTest is Test {
     // Storage slot for the Consensus Layer Balance in stETH
     bytes32 internal constant CL_BALANCE_POSITION = 0xa66d35f054e68143c18f32c990ed5cb972bb68a68f500cd2dd3a16bbf3686483; // keccak256("lido.Lido.beaconBalance");
 
-    address PUFFER_DAO = makeAddr("pufferDeployer");
+    address COMMUNITY_MULTISIG = makeAddr("pufferDeployer"); // In this case the deployer is 'multisig'
+    address OPERATIONS_MULTISIG = makeAddr("operations");
 
     function setUp() public {
         // 1 block after allowance increase for stETH on EL
@@ -99,7 +101,7 @@ contract PufferTest is Test {
         accessManager = AccessManager(payable(deployment.accessManager));
         pufferOracle = PufferOracle(payable(deployment.pufferOracle));
 
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         pufferDepositor.allowToken(IERC20(APE));
         vm.stopPrank();
 
@@ -167,11 +169,49 @@ contract PufferTest is Test {
         PufferVaultMainnet newImplementation =
             new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
 
-        vm.startPrank(PUFFER_DAO);
+        // Community multisig can do thing instantly
+        vm.startPrank(COMMUNITY_MULTISIG);
+
+        vm.expectEmit(true, true, true, true);
+        emit Initializable.Initialized(2);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
         );
         vm.stopPrank();
+    }
+
+    function test_upgrade_from_operations_multisig() public {
+        PufferVaultMainnet newImplementation =
+            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
+
+        // Community multisig can do thing instantly, this one has a delay
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        bytes memory initializerCallData = abi.encodeCall(PufferVaultMainnet.initialize, ());
+
+        // It is not allowed to execute before the timelock
+        vm.expectRevert();
+        accessManager.execute(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
+        );
+
+        // 1. Schedule the upgrade
+        accessManager.schedule(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData)),
+            0
+        );
+
+        vm.warp(block.timestamp + 7 days);
+
+        vm.expectEmit(true, true, true, true);
+        emit Initializable.Initialized(2);
+        // 2. Execute the upgrade
+        accessManager.execute(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
+        );
     }
 
     function test_upgrade_to_mainnet() public giveToken(MAKER_VAULT, address(_WETH), eve, 100 ether) {
@@ -255,7 +295,7 @@ contract PufferTest is Test {
         uint256 assetsBefore = pufferVault.totalAssets();
 
         // Initiate Withdrawals from lido
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
 
         assertApproxEqRel(assetsBefore, pufferVault.totalAssets(), 0.001e18, "bad accounting");
@@ -386,7 +426,7 @@ contract PufferTest is Test {
         _increaseELstETHCap();
 
         // Deposit to EL
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
 
         assertGt(_EIGEN_STETH_STRATEGY.userUnderlying(address(pufferVault)), 0, "no deposit to EL from the Vault");
@@ -407,7 +447,7 @@ contract PufferTest is Test {
         // 1 wei diff because of rounding
         assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
 
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         // EL Reverts
         vm.expectRevert("Pausable: index is paused");
         pufferVault.depositToEigenLayer(1000 ether);
