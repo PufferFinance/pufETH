@@ -172,5 +172,6 @@ contract PufferVault is
      * Restricted access
      * @param newImplementation The address of the new implementation
      */
+    // slither-disable-next-line dead-code
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }
