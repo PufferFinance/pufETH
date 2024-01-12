@@ -37,25 +37,12 @@ Following the withdrawal process, the ETH will be utilized to provision decentra
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
-| [`IPufferDepositor.sol`](../src/interface/IPufferDepositor.sol) | Singleton | / | YES | / |
-| [`PufferDepositor.sol`](../src/PufferDepositor.sol) | Singleton | / | YES | / |
+| [`IPufferDepositor.sol`](../src/interface/IPufferDepositor.sol) | Singleton | / | NO | / |
+| [`PufferDepositor.sol`](../src/PufferDepositor.sol) | Singleton | UUPS Proxy | NO | / |
 
 These contracts support depositing into our vault, and allow swapping other assets into depositable assets.
 
-* Register validator public keys
-* Deposit an ETH bond, which gets converted to pufETH and held within the [`PufferProtocol.sol`](../src/PufferProtocol.sol) contract 
-* Pay the initial smoothing commitment, and also additional smoothing commitments to extend the duration of running their validator
-* Receive 32 provisioned ETH to run a validator
-* Stop running their validator and retrieve their bond
-
-The protocol also utilizes these smart contracts to perform important functions, such as:
-
-* Proof of Reserves, AKA the amount of ETH backing pufETH
-* Proof of Full Withdrawls, required for NoOps to be able to retrieve their bond after they have finished validating
-* Create new Puffer Modules, which will include various mixes of AVSs that NoOps can decide to opt into, depending on risk/reward preferences
-* Store information about validators and protocol state variables controlled by governance, such as the ratio at which withdrawn ETH is split between the [PufferPool](../src/PufferPool.sol) and [WithdrawalPool](../src/WithdrawalPool.sol) smart contracts
-
-See full documentation in [./PufferProtocol.md](./PufferProtocol.md)
+See full documentation in [./PufferDepositor.md](./PufferDepositor.md)
 
 ### [Guardians](./Guardians.md)
 
