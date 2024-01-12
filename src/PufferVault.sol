@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferVault } from "src/interface/IPufferVault.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
@@ -117,7 +118,12 @@ contract PufferVault is
      * @notice Returns the ETH amount that is backing this vault locked in EigenLayer stETH strategy
      */
     function getELBackingEthAmount() public view virtual returns (uint256 ethAmount) {
-        return _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // When we initiate withdrawal from EigenLayer, the shares are deducted from the `lockedAmount`
+        uint256 lockedAmount = _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
+        uint256 pendingWithdrawalAmount =
+            _EIGEN_STETH_STRATEGY.sharesToUnderlyingView($.eigenLayerPendingWithdrawalSharesAmount);
+        return lockedAmount + pendingWithdrawalAmount;
     }
 
     /**
@@ -138,7 +144,54 @@ contract PufferVault is
     }
 
     /**
+     * @notice Initiates stETH withdrawals from EigenLayer
+     * Restricted access
+     * @param sharesToWithdraw An amount of EigenLayer shares that we want to queue
+     */
+    function initiateStETHWithdrawalFromEigenLayer(uint256 sharesToWithdraw) external virtual restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = sharesToWithdraw;
+
+        // Account for the shares
+        $.eigenLayerPendingWithdrawalSharesAmount += sharesToWithdraw;
+
+        _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
+            strategyIndexes: strategyIndexes,
+            strategies: strategies,
+            shares: shares,
+            withdrawer: address(this),
+            undelegateIfPossible: true
+        });
+    }
+
+    function claimWithdrawalFromEigenLayer(
+        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
+        uint256 middlewareTimesIndex
+    ) external virtual {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
+
+        _EIGEN_STRATEGY_MANAGER.completeQueuedWithdrawal({
+            queuedWithdrawal: queuedWithdrawal,
+            tokens: tokens,
+            middlewareTimesIndex: middlewareTimesIndex,
+            receiveAsTokens: true
+        });
+    }
+
+    /**
      * @notice Initiates ETH withdrawals from Lido
+     * Restricted access
      * @param amounts An array of amounts that we want to queue
      */
     function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)

@@ -17,6 +17,7 @@ abstract contract PufferVaultStorage {
      */
     struct VaultStorage {
         uint256 lidoLockedETH;
+        uint256 eigenLayerPendingWithdrawalSharesAmount;
         bool isLidoWithdrawal;
     }
 

@@ -8,4 +8,6 @@ contract stETHStrategyMock is IStrategy {
      * @notice Returns the amount of underlying tokens for `user`
      */
     function userUnderlying(address user) external view returns (uint256) { }
+
+    function sharesToUnderlyingView(uint256 amountShares) external view returns (uint256) { }
 }

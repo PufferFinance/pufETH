@@ -438,6 +438,57 @@ contract PufferTest is Test {
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
     }
 
+    function test_withdraw_from_eigenLayer()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+    {
+        // Simulate stETH cap increase call on EL
+        _increaseELstETHCap();
+
+        vm.startPrank(OPERATIONS_MULTISIG);
+        pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
+
+        uint256 ownedShares = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(pufferVault), _EIGEN_STETH_STRATEGY);
+
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // Initiate the withdrawal
+        pufferVault.initiateStETHWithdrawalFromEigenLayer(ownedShares);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same when locked");
+
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = IERC20(address(stETH));
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = ownedShares;
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonce =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory queuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: shares,
+            depositor: address(pufferVault),
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Roll block number + 100k blocks into the future
+        vm.roll(block.number + 100000);
+
+        // Claim Withdrawal
+        pufferVault.claimWithdrawalFromEigenLayer(queuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same after withdrawal");
+    }
+
     function test_eigenlayer_cap_reached()
         public
         giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
