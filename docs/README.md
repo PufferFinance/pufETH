@@ -33,64 +33,37 @@ Following the withdrawal process, the ETH will be utilized to provision decentra
 
 ## System components:
 
+### [PufferVault](./PufferVault.md)
+
+| File | Type | Upgradeable | Inherited | Deployed |
+| -------- | -------- | -------- | -------- | -------- |
+| [`IPufferVault.sol`](../src/interface/IPufferVault.sol) | Singleton | / | YES | / |
+| [`PufferVault.sol`](../src/PufferVault.sol) | Singleton | UUPS Proxy | YES | / |
+| [`PufferVaultMainnet.sol`](../src/PufferVaultMainnet.sol) | Singleton | UUPS Proxy | NO | / |
+| [`PufferVaultStorage.sol`](../src/PufferVaultStorage.sol) | Singleton | UUPS Proxy | NO | / |
+
+The Puffer Vault is the contract in charge of holding funds for the Puffer Protocol. Initially, it will store stETH and deposit into EigenLayer. Then, once the Puffer mainnet launch happens, it will withdraw this stETH and hold ETH instead, which will be used to provision validators for the Puffer Protocol.
+
+See full documentation in [./PufferVault.md](./PufferVault.md)
+
 ### [PufferDepositor](./PufferDepositor.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
-| [`IPufferDepositor.sol`](../src/interface/IPufferDepositor.sol) | Singleton | / | NO | / |
+| [`IPufferDepositor.sol`](../src/interface/IPufferDepositor.sol) | Singleton | / | YES | / |
 | [`PufferDepositor.sol`](../src/PufferDepositor.sol) | Singleton | UUPS Proxy | NO | / |
+| [`PufferDepositorStorage.sol`](../src/PufferDepositorStorage.sol) | Singleton | UUPS Proxy | NO | / |
 
 These contracts support depositing into our vault, and allow swapping other assets into depositable assets.
 
 See full documentation in [./PufferDepositor.md](./PufferDepositor.md)
 
-### [Guardians](./Guardians.md)
+### [PufferOracle](./PufferOracle.md)
 
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
-| [`IGuardianModule.sol`](../src/interface/IGuardianModule.sol) | Singleton | / | YES | / |
-| [`IEnclaveVerifier.sol`](../src/interface/IEnclaveVerifier.sol) | Singleton | / | YES |/ |
-| [`EnclaveVerifier.sol`](../src/EnclaveVerifier.sol) | Singleton | NO | YES | / |
-| [`GuardianModule.sol`](../src/GuardianModule.sol) | Singleton | NO | NO | / |
+| [`PufferOracle.sol`](../src/PufferOracle.sol) | Singleton | / | NO | / |
 
-The Guardians are a collective of respected community members who are deeply aligned with Ethereum's principles and values. They perform some trusted operations for our protocol, including:
+This contract allows Guardians to post important information for the Puffer Protocol, specifically, Proof of Reserves.
 
-* Reporting the amount of ETH backing pufETH
-* Ejecting validators
-
-See full documentation in [./Guardians.md](./Guardians.md)
-
-### [Modules](./Modules.md)
-
-| File | Type | Upgradeable | Inherited | Deployed |
-| -------- | -------- | -------- | -------- | -------- |
-| [`IPufferModule.sol`](../src/interface/IPufferModule.sol) | Singleton | / | YES | / |
-| [`NoRestakingModule.sol`](../src/NoRestakingModule.sol) | Singleton | NO | NO | / |
-| [`PufferModule.sol`](../src/PufferModule.sol) | [Beacon Proxy](https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy) | YES | NO | / |
-
-Each Puffer Module refers to a specific set of AVSs for which all Puffer NoOps participating in that module must delegate their funds to running. Each validator must choose exactly one Puffer Module to participate in, based on desired risk/reward preferences. The safest Puffer Module is the [NoRestakingModule](../src/NoRestakingModule.sol), which includes no AVSs. Validators in this module only perform Ethereum consensus.
-
-See full documentation in [./PufferModule.md](./PufferModule.md)
-
-### [PufferPool](./PufferPool.md)
-
-| File | Type | Upgradeable | Inherited | Deployed |
-| -------- | -------- | -------- | -------- |  -------- |
-| [`TokenRescuer.sol`](../src/TokenRescuer.sol) | Singleton | NO | Yes | / |
-| [`IPufferPool.sol`](../src/interface/IPufferPool.sol) | Singleton | NO | Yes | / |
-| [`PufferPool.sol`](../src/PufferPool.sol) | Singleton | NO | / | / |
-
-The [PufferPool](../src/PufferPool.sol) contract is where the main funds are held before provisioning validators. Stakers deposit ETH into this contract in exchange for pufETH. Protocol rewards may also be sent to this contract, which will ultimately appreciate the value of pufETH.
-
-See full documentation in [./PufferPool.md](./PufferPool.md)
-
-### [WithdrawalPool](./WithdrawalPool.md)
-
-| File | Type | Upgradeable | Inherited | Deployed |
-| -------- | -------- | -------- | -------- |  -------- |
-| [`IWithdrawalPool.sol`](../src/interface/IWithdrawalPool.sol) | Singleton | NO | YES | / |
-| [`WithdrawalPool.sol`](../src/WithdrawalPool.sol) | Singleton | NO | / | / |
-
-pufETH holders who wish to exchange their holdings for ETH may do so via the [WithdrawalPool](../src/WithdrawalPool.sol) contract, given there is enough liquidity to fulfill the exchange. This contract receives funds when Puffer NoOps discontinue running their validators and return the ETH back to the protocol. Some of this ETH enters the [WithdrawalPool](../src/WithdrawalPool.sol) contract according to a ratio determined by governance. 
-
-See full documentation in [./WithdrawalPool.md](./WithdrawalPool.md)
+See full documentation in [./PufferOracle.md](./PufferOracle.md)
