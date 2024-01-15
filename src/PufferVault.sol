@@ -11,7 +11,6 @@ import { PufferVaultStorage } from "src/PufferVaultStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -29,12 +28,23 @@ contract PufferVault is
     ERC4626Upgradeable,
     UUPSUpgradeable
 {
-    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for address;
 
+    /**
+     * @dev EigenLayer stETH strategy
+     */
     IStrategy internal immutable _EIGEN_STETH_STRATEGY;
+    /**
+     * @dev EigenLayer Strategy Manager
+     */
     IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+    /**
+     * @dev stETH contract
+     */
     IStETH internal immutable _ST_ETH;
+    /**
+     * @dev Lido Withdrawal Queue
+     */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
     constructor(
@@ -47,7 +57,6 @@ contract PufferVault is
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _EIGEN_STETH_STRATEGY = stETHStrategy;
         _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
-        // Approve stETH to Lido && EL
         _disableInitializers();
     }
 
@@ -55,12 +64,13 @@ contract PufferVault is
         __AccessManaged_init(accessManager);
         __ERC4626_init(_ST_ETH);
         __ERC20_init("pufETH", "pufETH");
+        // Approve stETH to Lido && EigenLayer
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), type(uint256).max);
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), type(uint256).max);
     }
 
     receive() external payable virtual {
-        // If we don't use this pattern, somebody can create a Lido withdrawal and claim it to this contract
+        // If we don't use this pattern, somebody can create a Lido withdrawal, claim it to this contract
         // Making `$.lidoLockedETH -= msg.value` revert
         VaultStorage storage $ = _getPufferVaultStorage();
         if ($.isLidoWithdrawal) {
