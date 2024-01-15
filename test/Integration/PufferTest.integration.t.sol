@@ -18,6 +18,7 @@ import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
+import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
@@ -29,6 +30,7 @@ contract PufferTest is Test {
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
@@ -345,7 +347,7 @@ contract PufferTest is Test {
         SafeERC20.safeIncreaseAllowance(IERC20(USDT), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDT, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(alice), 0, "alice has got pufETH");
+        assertGt(pufferVault.balanceOf(alice), 0, "alice pufETH");
         assertGt(stETH.balanceOf(address(pufferVault)), 0, "pufferVault should hold stETH");
     }
 
@@ -364,7 +366,7 @@ contract PufferTest is Test {
         SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(dave), 0, "dave has got pufETH");
+        assertGt(pufferVault.balanceOf(dave), 0, "dave pufETH");
     }
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
@@ -382,7 +384,49 @@ contract PufferTest is Test {
         SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(charlie), 0, "charlie has got pufETH");
+        assertGt(pufferVault.balanceOf(charlie), 0, "charlie pufETH");
+    }
+
+    function test_deposit_wstETH_permit()
+        public
+        giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "alice",
+                address(pufferDepositor),
+                3000 ether,
+                block.timestamp,
+                hex"d4a8ff90a402dc7d4fcbf60f5488291263c743ccff180e139f47d139cedfd5fe"
+            )
+        );
+
+        // Permit is good in this case
+        pufferDepositor.depositWstETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
+    }
+
+    function test_deposit_wstETH()
+        public
+        giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        IERC20(address(_WST_ETH)).approve(address(pufferDepositor), type(uint256).max);
+
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit =
+            _signPermit(_testTemps("alice", address(pufferDepositor), 3000 ether, block.timestamp, hex""));
+
+        // Permit call will revert because of the bad domain separator for wstETH
+        // But because we did the .approve, the transaction will succeed
+        pufferDepositor.depositWstETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
 
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
@@ -418,7 +462,7 @@ contract PufferTest is Test {
             routeCode: routeCode
         });
 
-        assertGt(pufferVault.balanceOf(bob), 0, "bob has got pufETH");
+        assertGt(pufferVault.balanceOf(bob), 0, "bob pufETH");
     }
 
     // Almost the same test as the one above, but on newer fork with a newer USDC version
