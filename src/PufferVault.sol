@@ -114,9 +114,11 @@ contract PufferVault is
 
     /**
      * @dev See {IERC4626-totalAssets}.
-     * Eventually, stETH will not exist anymore, and the Vault will represent shares of total ETH holdings
-     * ETH to stETH is always 1:1 (stETH is rebasing token)
-     * Sum of EL assets + Vault Assets
+     * Eventually, stETH will not be part of this vault anymore, and the Vault(pufETH) will represent shares of total ETH holdings
+     * Because stETH is a rebasing token, its ratio with ETH is 1:1
+     * Because of that our ETH holdings backing the system are:
+     * stETH balance of this vault + stETH balance locked in EigenLayer + stETH balance that is the process of withdrawal from Lido
+     * + ETH balance of this vault
      */
     function totalAssets() public view virtual override returns (uint256) {
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + getPendingLidoETHAmount()
@@ -129,6 +131,7 @@ contract PufferVault is
     function getELBackingEthAmount() public view virtual returns (uint256 ethAmount) {
         VaultStorage storage $ = _getPufferVaultStorage();
         // When we initiate withdrawal from EigenLayer, the shares are deducted from the `lockedAmount`
+        // In that case the locked amount goes to 0 and the pendingWithdrawalAmount increases
         uint256 lockedAmount = _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
         uint256 pendingWithdrawalAmount =
             _EIGEN_STETH_STRATEGY.sharesToUnderlyingView($.eigenLayerPendingWithdrawalSharesAmount);
@@ -145,7 +148,8 @@ contract PufferVault is
     }
 
     /**
-     * @notice Deposits stETH into `stETH` EigenLayer strategy
+     * @notice Deposits stETH into `stETH EigenLayer strategy`
+     * Restricted access
      * @param amount the amount of stETH to deposit
      */
     function depositToEigenLayer(uint256 amount) external virtual restricted {
@@ -181,6 +185,13 @@ contract PufferVault is
         });
     }
 
+    /**
+     * @notice Claims stETH withdrawals from EigenLayer
+     * Restricted access
+     * @param queuedWithdrawal The queued withdrawal details
+     * @param tokens The tokens to be withdrawn
+     * @param middlewareTimesIndex The index of middleware times
+     */
     function claimWithdrawalFromEigenLayer(
         IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
         IERC20[] calldata tokens,
