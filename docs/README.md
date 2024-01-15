@@ -64,6 +64,6 @@ See full documentation in [./PufferDepositor.md](./PufferDepositor.md)
 | -------- | -------- | -------- | -------- | -------- |
 | [`PufferOracle.sol`](../src/PufferOracle.sol) | Singleton | / | NO | / |
 
-This contract allows Guardians to post important information for the Puffer Protocol, specifically, Proof of Reserves.
+This contract allows Guardians to post Proof of Reserves, proving the amount of ETH backing pufETH, and therefore establishing a fair market value of pufETH.
 
 See full documentation in [./PufferOracle.md](./PufferOracle.md)
