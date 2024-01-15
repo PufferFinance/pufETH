@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
@@ -95,6 +95,11 @@ contract PufferTest is Test {
         // https://etherscan.io/tx/0xc16610a3dc3e8732e3fbb7761f6e1c0e44869cba5a41b058d2b3abce98833667
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18812842);
 
+        // Deploy the contracts on the fork above
+        _setupContracts();
+    }
+
+    function _setupContracts() internal {
         PufferDeployment memory deployment = new DeployPuffETH().run();
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));
@@ -116,6 +121,13 @@ contract PufferTest is Test {
         (bob, bobSK) = makeAddrAndKey("bob");
     }
 
+    function _setupUsdcFork() internal {
+        // USDC token got an upgrade, because of that we create another fork, to test that it works
+        // https://www.circle.com/blog/announcing-usdc-v2.2
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 19011889);
+        _setupContracts();
+    }
+
     // Transfer `token` from Binance to `to`
     modifier giveToken(address from, address token, address to, uint256 amount) {
         vm.startPrank(from);
@@ -128,6 +140,13 @@ contract PufferTest is Test {
         vm.startPrank(caller);
         _;
         vm.stopPrank();
+    }
+
+    modifier deployNewUsdc() {
+        // Workaround for deploying new usdc fork
+        // This modifier needs to be called first
+        _setupUsdcFork();
+        _;
     }
 
     function _increaseELstETHCap() public {
@@ -339,13 +358,13 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(dave), 0, "dave has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(dave), 0, "dave has 0 pufETH");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(dave), 0, "dave has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(dave), 0, "dave has got pufETH");
     }
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
@@ -357,13 +376,13 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"024d224452801ACEd8B2F0aebE155379bb5D59438101ffff00130F4322e5838463ee460D5854F5D472cFC8f25301e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67004C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc200e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67000AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(charlie), 0, "charlie has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(charlie), 0, "charlie has 0 pufETH");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(charlie), 0, "charlie has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(charlie), 0, "charlie has got pufETH");
     }
 
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
@@ -379,7 +398,7 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
 
         IPufferDepositor.Permit memory permit = _signPermit(
             _testTemps(
@@ -399,7 +418,42 @@ contract PufferTest is Test {
             routeCode: routeCode
         });
 
-        assertGt(pufferVault.balanceOf(bob), 0, "bob has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(bob), 0, "bob has got pufETH");
+    }
+
+    // Almost the same test as the one above, but on newer fork with a newer USDC version
+    function test_usdc_permit_upgrade()
+        public
+        deployNewUsdc
+        giveToken(BINANCE, USDC, bob, 10_000_000_000)
+        withCaller(bob)
+    {
+        uint256 tokenInAmount = 10_000_000_000; // 10k USDC
+
+        bytes memory routeCode =
+            hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
+
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "bob",
+                address(pufferDepositor),
+                tokenInAmount,
+                block.timestamp,
+                hex"06c37168a7db5138defc7866392bb87a741f9b3d104deb5094588ce041cae335"
+            )
+        );
+
+        // USDT doesn't have a permit, so the user needs to approve it to our contract
+        pufferDepositor.swapAndDepositWithPermit({
+            tokenIn: USDC,
+            amountOutMin: 0,
+            permitData: permit,
+            routeCode: routeCode
+        });
+
+        assertGt(pufferVault.balanceOf(bob), 0, "bob got pufETH");
     }
 
     function test_conversions_and_deposit_to_el() public {
