@@ -35,7 +35,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      */
     PufferVault public immutable PUFFER_VAULT;
 
-    constructor(PufferVault pufferVault, IStETH stETH) {
+    constructor(PufferVault pufferVault, IStETH stETH) payable {
         PUFFER_VAULT = pufferVault;
         _ST_ETH = stETH;
         _disableInitializers();

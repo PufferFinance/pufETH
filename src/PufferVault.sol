@@ -52,7 +52,7 @@ contract PufferVault is
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager
-    ) {
+    ) payable {
         _ST_ETH = stETH;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _EIGEN_STETH_STRATEGY = stETHStrategy;
