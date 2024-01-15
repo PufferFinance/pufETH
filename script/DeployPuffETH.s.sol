@@ -12,7 +12,6 @@ import { NoImplementation } from "src/NoImplementation.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
-import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { StETHMockERC20 } from "test/mocks/stETHMock.sol";
