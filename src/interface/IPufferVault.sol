@@ -16,8 +16,20 @@ interface IPufferVault {
      */
     event ClaimedWithdrawals(uint256[] requestIds);
     /**
+     * @notice Emitted when we deposit stETH to EigenLayer
+     */
+    event DepositedToEigenLayer(uint256 amount);
+    /**
+     * @notice Emitted when we initiate withdrawal from EigenLayer
+     */
+    event InitiatedWithdrawalFromEigenLayer(uint256 elSharesAmount);
+    /**
+     * @notice Emitted when we claim the queued withdrawal from EigenLayer
+     */
+    event ClaimedWithdrawalFromEigenLayer(uint256 elSharesAmount);
+
+    /**
      * @notice Emitted when the user tries to do a withdrawal
      */
-
     error WithdrawalsAreDisabled();
 }

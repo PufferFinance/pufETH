@@ -154,6 +154,7 @@ contract PufferVault is
      */
     function depositToEigenLayer(uint256 amount) external virtual restricted {
         _EIGEN_STRATEGY_MANAGER.depositIntoStrategy({ strategy: _EIGEN_STETH_STRATEGY, token: _ST_ETH, amount: amount });
+        emit DepositedToEigenLayer(amount);
     }
 
     /**
@@ -183,6 +184,7 @@ contract PufferVault is
             withdrawer: address(this),
             undelegateIfPossible: true
         });
+        emit InitiatedWithdrawalFromEigenLayer(sharesToWithdraw);
     }
 
     /**
@@ -207,6 +209,7 @@ contract PufferVault is
             middlewareTimesIndex: middlewareTimesIndex,
             receiveAsTokens: true
         });
+        emit ClaimedWithdrawalFromEigenLayer(queuedWithdrawal.shares[0]);
     }
 
     /**
