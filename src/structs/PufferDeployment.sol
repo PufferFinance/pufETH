@@ -8,4 +8,5 @@ struct PufferDeployment {
     address pufferVault;
     address pufferVaultImplementation;
     address pufferOracle;
+    address stETH;
 }

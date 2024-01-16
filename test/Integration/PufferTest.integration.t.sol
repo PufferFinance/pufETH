@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
@@ -11,13 +11,29 @@ import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { IStETH } from "src/interface/Lido/IStETH.sol";
+import { IWstETH } from "src/interface/Lido/IWstETH.sol";
+import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 
 contract PufferTest is Test {
+    /**
+     * @dev Ethereum Mainnet addresses
+     */
+    IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
+    IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
+    IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
+    ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
+        ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
+
     using stdStorage for StdStorage;
 
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -73,22 +89,28 @@ contract PufferTest is Test {
     // Storage slot for the Consensus Layer Balance in stETH
     bytes32 internal constant CL_BALANCE_POSITION = 0xa66d35f054e68143c18f32c990ed5cb972bb68a68f500cd2dd3a16bbf3686483; // keccak256("lido.Lido.beaconBalance");
 
-    address PUFFER_DAO = makeAddr("pufferDeployer");
+    address COMMUNITY_MULTISIG = makeAddr("pufferDeployer"); // In this case the deployer is 'multisig'
+    address OPERATIONS_MULTISIG = makeAddr("operations");
 
     function setUp() public {
         // 1 block after allowance increase for stETH on EL
         // https://etherscan.io/tx/0xc16610a3dc3e8732e3fbb7761f6e1c0e44869cba5a41b058d2b3abce98833667
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18812842);
 
+        // Deploy the contracts on the fork above
+        _setupContracts();
+    }
+
+    function _setupContracts() internal {
         PufferDeployment memory deployment = new DeployPuffETH().run();
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         pufferOracle = PufferOracle(payable(deployment.pufferOracle));
 
-        vm.startPrank(PUFFER_DAO);
-        pufferDepositor.allowToken(IERC20(APE));
-        vm.stopPrank();
+        // vm.startPrank(COMMUNITY_MULTISIG);
+        // pufferDepositor.allowToken(IERC20(APE));
+        // vm.stopPrank();
 
         vm.label(address(stETH), "stETH");
         vm.label(address(APE), "APE");
@@ -99,6 +121,13 @@ contract PufferTest is Test {
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
 
         (bob, bobSK) = makeAddrAndKey("bob");
+    }
+
+    function _setupUsdcFork() internal {
+        // USDC token got an upgrade, because of that we create another fork, to test that it works
+        // https://www.circle.com/blog/announcing-usdc-v2.2
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 19011889);
+        _setupContracts();
     }
 
     // Transfer `token` from Binance to `to`
@@ -113,6 +142,13 @@ contract PufferTest is Test {
         vm.startPrank(caller);
         _;
         vm.stopPrank();
+    }
+
+    modifier deployNewUsdc() {
+        // Workaround for deploying new usdc fork
+        // This modifier needs to be called first
+        _setupUsdcFork();
+        _;
     }
 
     function _increaseELstETHCap() public {
@@ -151,13 +187,52 @@ contract PufferTest is Test {
     function _upgradeToMainnetPuffer() internal {
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultMainnet newImplementation = new PufferVaultMainnet();
+        PufferVaultMainnet newImplementation =
+            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
 
-        vm.startPrank(PUFFER_DAO);
+        // Community multisig can do thing instantly
+        vm.startPrank(COMMUNITY_MULTISIG);
+
+        vm.expectEmit(true, true, true, true);
+        emit Initializable.Initialized(2);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
         );
         vm.stopPrank();
+    }
+
+    function test_upgrade_from_operations_multisig() public {
+        PufferVaultMainnet newImplementation =
+            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
+
+        // Community multisig can do thing instantly, this one has a delay
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        bytes memory initializerCallData = abi.encodeCall(PufferVaultMainnet.initialize, ());
+
+        // It is not allowed to execute before the timelock
+        vm.expectRevert();
+        accessManager.execute(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
+        );
+
+        // 1. Schedule the upgrade
+        accessManager.schedule(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData)),
+            0
+        );
+
+        vm.warp(block.timestamp + 7 days);
+
+        vm.expectEmit(true, true, true, true);
+        emit Initializable.Initialized(2);
+        // 2. Execute the upgrade
+        accessManager.execute(
+            address(pufferVault),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
+        );
     }
 
     function test_upgrade_to_mainnet() public giveToken(MAKER_VAULT, address(_WETH), eve, 100 ether) {
@@ -241,7 +316,7 @@ contract PufferTest is Test {
         uint256 assetsBefore = pufferVault.totalAssets();
 
         // Initiate Withdrawals from lido
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
 
         assertApproxEqRel(assetsBefore, pufferVault.totalAssets(), 0.001e18, "bad accounting");
@@ -272,7 +347,7 @@ contract PufferTest is Test {
         SafeERC20.safeIncreaseAllowance(IERC20(USDT), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDT, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(alice), 0, "alice has got pufETH");
+        assertGt(pufferVault.balanceOf(alice), 0, "alice pufETH");
         assertGt(stETH.balanceOf(address(pufferVault)), 0, "pufferVault should hold stETH");
     }
 
@@ -285,13 +360,13 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(dave), 0, "dave has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(dave), 0, "dave has 0 pufETH");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(dave), 0, "dave has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(dave), 0, "dave pufETH");
     }
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
@@ -303,13 +378,55 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"024d224452801ACEd8B2F0aebE155379bb5D59438101ffff00130F4322e5838463ee460D5854F5D472cFC8f25301e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67004C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc200e43D6AAFce76f53670C4b7D6B38A7D8a67a4B67000AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(charlie), 0, "charlie has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(charlie), 0, "charlie has 0 pufETH");
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufferDepositor), type(uint256).max);
         pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
 
-        assertGt(pufferVault.balanceOf(charlie), 0, "charlie has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(charlie), 0, "charlie pufETH");
+    }
+
+    function test_deposit_wstETH_permit()
+        public
+        giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "alice",
+                address(pufferDepositor),
+                3000 ether,
+                block.timestamp,
+                hex"d4a8ff90a402dc7d4fcbf60f5488291263c743ccff180e139f47d139cedfd5fe"
+            )
+        );
+
+        // Permit is good in this case
+        pufferDepositor.depositWstETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
+    }
+
+    function test_deposit_wstETH()
+        public
+        giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        IERC20(address(_WST_ETH)).approve(address(pufferDepositor), type(uint256).max);
+
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit =
+            _signPermit(_testTemps("alice", address(pufferDepositor), 3000 ether, block.timestamp, hex""));
+
+        // Permit call will revert because of the bad domain separator for wstETH
+        // But because we did the .approve, the transaction will succeed
+        pufferDepositor.depositWstETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
 
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
@@ -325,7 +442,7 @@ contract PufferTest is Test {
         bytes memory routeCode =
             hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
 
-        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufferDepositor");
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
 
         IPufferDepositor.Permit memory permit = _signPermit(
             _testTemps(
@@ -345,7 +462,42 @@ contract PufferTest is Test {
             routeCode: routeCode
         });
 
-        assertGt(pufferVault.balanceOf(bob), 0, "bob has got pufferDepositor");
+        assertGt(pufferVault.balanceOf(bob), 0, "bob pufETH");
+    }
+
+    // Almost the same test as the one above, but on newer fork with a newer USDC version
+    function test_usdc_permit_upgrade()
+        public
+        deployNewUsdc
+        giveToken(BINANCE, USDC, bob, 10_000_000_000)
+        withCaller(bob)
+    {
+        uint256 tokenInAmount = 10_000_000_000; // 10k USDC
+
+        bytes memory routeCode =
+            hex"02A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4801ffff0188e6A0c2dDD26FEEb64F039a2c41296FcB3f5640014028DAAC072e492d34a3Afdbef0ba7e35D8b55C404C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
+
+        assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "bob",
+                address(pufferDepositor),
+                tokenInAmount,
+                block.timestamp,
+                hex"06c37168a7db5138defc7866392bb87a741f9b3d104deb5094588ce041cae335"
+            )
+        );
+
+        // USDT doesn't have a permit, so the user needs to approve it to our contract
+        pufferDepositor.swapAndDepositWithPermit({
+            tokenIn: USDC,
+            amountOutMin: 0,
+            permitData: permit,
+            routeCode: routeCode
+        });
+
+        assertGt(pufferVault.balanceOf(bob), 0, "bob got pufETH");
     }
 
     function test_conversions_and_deposit_to_el() public {
@@ -372,28 +524,67 @@ contract PufferTest is Test {
         _increaseELstETHCap();
 
         // Deposit to EL
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
 
-        (, uint256[] memory amounts) = eigenStrategyManager.getDeposits(address(pufferVault));
-
-        uint256 depositedAmount;
-
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            if (amounts[i] != 0) {
-                depositedAmount = amounts[i];
-                // If we have some amount somewhere, we deposited
-                break;
-            }
-        }
-
-        assertGt(depositedAmount, 0, "no deposit to EL");
+        assertGt(_EIGEN_STETH_STRATEGY.userUnderlying(address(pufferVault)), 0, "no deposit to EL from the Vault");
 
         // Get total ETH backing of our system
         uint256 totalETHBackingAmount = pufferVault.totalAssets();
 
         // Got ~ 14.79 ETH assert with 0.4% tolerance
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
+    }
+
+    function test_withdraw_from_eigenLayer()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+    {
+        // Simulate stETH cap increase call on EL
+        _increaseELstETHCap();
+
+        vm.startPrank(OPERATIONS_MULTISIG);
+        pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
+
+        uint256 ownedShares = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(pufferVault), _EIGEN_STETH_STRATEGY);
+
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // Initiate the withdrawal
+        pufferVault.initiateStETHWithdrawalFromEigenLayer(ownedShares);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same when locked");
+
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = IERC20(address(stETH));
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = ownedShares;
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonce =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory queuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: shares,
+            depositor: address(pufferVault),
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Roll block number + 100k blocks into the future
+        vm.roll(block.number + 100000);
+
+        // Claim Withdrawal
+        pufferVault.claimWithdrawalFromEigenLayer(queuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same after withdrawal");
     }
 
     function test_eigenlayer_cap_reached()
@@ -405,7 +596,7 @@ contract PufferTest is Test {
         // 1 wei diff because of rounding
         assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
 
-        vm.startPrank(PUFFER_DAO);
+        vm.startPrank(COMMUNITY_MULTISIG);
         // EL Reverts
         vm.expectRevert("Pausable: index is paused");
         pufferVault.depositToEigenLayer(1000 ether);
