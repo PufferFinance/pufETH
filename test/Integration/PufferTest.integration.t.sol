@@ -108,9 +108,9 @@ contract PufferTest is Test {
         accessManager = AccessManager(payable(deployment.accessManager));
         pufferOracle = PufferOracle(payable(deployment.pufferOracle));
 
-        vm.startPrank(COMMUNITY_MULTISIG);
-        pufferDepositor.allowToken(IERC20(APE));
-        vm.stopPrank();
+        // vm.startPrank(COMMUNITY_MULTISIG);
+        // pufferDepositor.allowToken(IERC20(APE));
+        // vm.stopPrank();
 
         vm.label(address(stETH), "stETH");
         vm.label(address(APE), "APE");

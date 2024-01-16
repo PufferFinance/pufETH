@@ -22,9 +22,6 @@ import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
 contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessManagedUpgradeable, UUPSUpgradeable {
     using SafeERC20 for address;
 
-    IERC20 internal constant _USDT = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
-    IERC20 internal constant _USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-
     IStETH internal immutable _ST_ETH;
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
@@ -44,8 +41,6 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(PUFFER_VAULT), type(uint256).max);
-        _allowToken(_USDT);
-        _allowToken(_USDC);
     }
 
     /**
@@ -56,14 +51,6 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         virtual
         returns (uint256 pufETHAmount)
     {
-        DepositorStorage storage $ = _getDepositorStorage();
-
-        // It is more readable than !
-        // slither-disable-next-line boolean-equal
-        if ($.allowedTokens[IERC20(tokenIn)] == false) {
-            revert TokenNotAllowed(tokenIn);
-        }
-
         SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
         SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_SUSHI_ROUTER), amountIn);
 
@@ -88,14 +75,6 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
     ) public virtual returns (uint256 pufETHAmount) {
-        DepositorStorage storage $ = _getDepositorStorage();
-
-        // It is more readable than !
-        // slither-disable-next-line boolean-equal
-        if ($.allowedTokens[IERC20(tokenIn)] == false) {
-            revert TokenNotAllowed(tokenIn);
-        }
-
         try ERC20Permit(address(tokenIn)).permit({
             owner: permitData.owner,
             spender: address(this),
@@ -144,39 +123,9 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     }
 
     /**
-     * @notice Allows the specified token for deposit
-     * Restricted access
-     * @param token The token to be allowed for deposit
-     */
-    function allowToken(IERC20 token) external restricted {
-        _allowToken(token);
-    }
-
-    /**
-     * @notice Disallows the specified token for deposit
-     * Restricted access
-     * @param token The token to be disallowed for deposit
-     */
-    function disallowToken(IERC20 token) external restricted {
-        _disallowToken(token);
-    }
-
-    /**
      * @dev Authorizes an upgrade to a new implementation
      * Restricted access
      * @param newImplementation The address of the new implementation
      */
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
-
-    function _allowToken(IERC20 token) internal virtual {
-        DepositorStorage storage $ = _getDepositorStorage();
-        $.allowedTokens[token] = true;
-        emit TokenAllowed(token);
-    }
-
-    function _disallowToken(IERC20 token) internal virtual {
-        DepositorStorage storage $ = _getDepositorStorage();
-        $.allowedTokens[token] = false;
-        emit TokenDisallowed(token);
-    }
 }
