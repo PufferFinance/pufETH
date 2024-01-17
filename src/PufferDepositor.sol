@@ -49,6 +49,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
         public
         virtual
+        restricted
         returns (uint256 pufETHAmount)
     {
         SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
@@ -74,7 +75,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
-    ) public virtual returns (uint256 pufETHAmount) {
+    ) public virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
             owner: permitData.owner,
             spender: address(this),
@@ -105,7 +106,11 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      * @param permitData The permit data containing the approval information
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount) {
+    function depositWstETH(IPufferDepositor.Permit calldata permitData)
+        external
+        restricted
+        returns (uint256 pufETHAmount)
+    {
         try ERC20Permit(address(_WST_ETH)).permit({
             owner: permitData.owner,
             spender: address(this),

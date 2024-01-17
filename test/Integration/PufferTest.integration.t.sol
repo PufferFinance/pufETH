@@ -316,7 +316,7 @@ contract PufferTest is Test {
         uint256 assetsBefore = pufferVault.totalAssets();
 
         // Initiate Withdrawals from lido
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
 
         assertApproxEqRel(assetsBefore, pufferVault.totalAssets(), 0.001e18, "bad accounting");
@@ -524,7 +524,7 @@ contract PufferTest is Test {
         _increaseELstETHCap();
 
         // Deposit to EL
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
 
         assertGt(_EIGEN_STETH_STRATEGY.userUnderlying(address(pufferVault)), 0, "no deposit to EL from the Vault");
@@ -596,7 +596,7 @@ contract PufferTest is Test {
         // 1 wei diff because of rounding
         assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
 
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         // EL Reverts
         vm.expectRevert("Pausable: index is paused");
         pufferVault.depositToEigenLayer(1000 ether);

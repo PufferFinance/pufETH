@@ -8,7 +8,7 @@ import { PufferDepositor } from "src/PufferDepositor.sol";
 import { PufferOracle } from "src/PufferOracle.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { StETHMockERC20 } from "../mocks/stETHMock.sol";
+import { stETHMock } from "../mocks/stETHMock.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 
@@ -39,7 +39,7 @@ contract PufETHTest is ERC4626Test {
     }
 
     function test_erc4626_interface() public {
-        StETHMockERC20(address(stETH)).mint(address(this), 2000 ether);
+        stETHMock(address(stETH)).mint(address(this), 2000 ether);
         stETH.approve(address(pufferVault), type(uint256).max);
 
         // Deposit works

@@ -8,13 +8,14 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDepositor } from "src/PufferDepositor.sol";
 import { PufferOracle } from "src/PufferOracle.sol";
 import { PufferVault } from "src/PufferVault.sol";
+import { Timelock } from "src/Timelock.sol";
 import { NoImplementation } from "src/NoImplementation.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { StETHMockERC20 } from "test/mocks/stETHMock.sol";
+import { stETHMock } from "test/mocks/stETHMock.sol";
 import { LidoWithdrawalQueueMock } from "test/mocks/LidoWithdrawalQueueMock.sol";
 import { stETHStrategyMock } from "test/mocks/stETHStrategyMock.sol";
 import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
@@ -55,6 +56,7 @@ contract DeployPuffETH is BaseScript {
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;
     PufferOracle pufferOracle;
+    Timelock timelock;
 
     ERC1967Proxy depositorProxy;
     ERC1967Proxy vaultProxy;
@@ -65,6 +67,7 @@ contract DeployPuffETH is BaseScript {
 
     address operationsMultisig = makeAddr("operations"); //@todo this
     address communityMultisig = _broadcaster;
+    address pauserMultisig = makeAddr("pauser"); //@todo this
 
     function run() public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
@@ -84,16 +87,23 @@ contract DeployPuffETH is BaseScript {
 
         // Deploy mock Puffer oracle
         pufferOracle = new PufferOracle();
+        timelock = new Timelock({
+            accessManager: address(accessManager),
+            communityMultisig: communityMultisig,
+            operationsMultisig: operationsMultisig,
+            pauserMultisig: pauserMultisig,
+            initialDelay: 3 days
+        });
 
         {
             (
-                IStETH stETHMock,
+                IStETH stETH,
                 ILidoWithdrawalQueue lidoWithdrawalQueue,
                 IStrategy stETHStrategy,
                 IEigenLayer eigenStrategyManager
             ) = _getArgs();
 
-            stETHAddress = address(stETHMock);
+            stETHAddress = address(stETH);
 
             // Deploy implementation contracts
             pufferVaultImplementation =
@@ -131,7 +141,8 @@ contract DeployPuffETH is BaseScript {
             pufferVault: address(vaultProxy),
             pufferVaultImplementation: address(pufferVaultImplementation),
             pufferOracle: address(pufferOracle),
-            stETH: stETHAddress
+            stETH: stETHAddress,
+            timelock: address(timelock)
         });
     }
 
@@ -185,7 +196,7 @@ contract DeployPuffETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = PufferVault.depositToEigenLayer.selector;
@@ -200,8 +211,19 @@ contract DeployPuffETH is BaseScript {
         // Setup role members (no delay)
         calldatas[1] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS, operationsMultisig, 0);
+        // Grant admin role to timelock
         calldatas[2] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS, communityMultisig, 0);
+            abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);
+
+        // Setup public access
+        bytes4[] memory publicSelectors = new bytes4[](3);
+        publicSelectors[0] = PufferDepositor.swapAndDeposit.selector;
+        publicSelectors[1] = PufferDepositor.swapAndDepositWithPermit.selector;
+        publicSelectors[2] = PufferDepositor.depositWstETH.selector;
+
+        calldatas[3] = abi.encodeCall(
+            AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
+        );
 
         return calldatas;
     }
@@ -221,7 +243,7 @@ contract DeployPuffETH is BaseScript {
             stETHStrategy = _EIGEN_STETH_STRATEGY;
             eigenStrategyManager = _EIGEN_STRATEGY_MANAGER;
         } else {
-            stETH = IStETH(address(new StETHMockERC20()));
+            stETH = IStETH(address(new stETHMock()));
             lidoWithdrawalQueue = new LidoWithdrawalQueueMock();
             stETHStrategy = new stETHStrategyMock();
             eigenStrategyManager = new EigenLayerManagerMock();
