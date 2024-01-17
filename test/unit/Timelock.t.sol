@@ -61,7 +61,7 @@ contract PufETHTest is Test {
         // targets[0] = address(pufferVault);
         // timelock.pause(targets);
 
-        // // Alice cant deposit again
+        // // Alice can't deposit again
         // vm.startPrank(alice);
         // vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
         // pufferVault.deposit(300 ether, alice);
