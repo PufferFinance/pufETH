@@ -11,10 +11,8 @@ import { PufferVaultStorage } from "src/PufferVaultStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { EnumerableSet } from "openzeppelin/utils/structs/EnumerableSet.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 /**
@@ -30,12 +28,23 @@ contract PufferVault is
     ERC4626Upgradeable,
     UUPSUpgradeable
 {
-    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for address;
 
+    /**
+     * @dev EigenLayer stETH strategy
+     */
     IStrategy internal immutable _EIGEN_STETH_STRATEGY;
+    /**
+     * @dev EigenLayer Strategy Manager
+     */
     IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+    /**
+     * @dev stETH contract
+     */
     IStETH internal immutable _ST_ETH;
+    /**
+     * @dev Lido Withdrawal Queue
+     */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
     constructor(
@@ -43,12 +52,11 @@ contract PufferVault is
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager
-    ) {
+    ) payable {
         _ST_ETH = stETH;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _EIGEN_STETH_STRATEGY = stETHStrategy;
         _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
-        // Approve stETH to Lido && EL
         _disableInitializers();
     }
 
@@ -56,12 +64,13 @@ contract PufferVault is
         __AccessManaged_init(accessManager);
         __ERC4626_init(_ST_ETH);
         __ERC20_init("pufETH", "pufETH");
+        // Approve stETH to Lido && EigenLayer
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), type(uint256).max);
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), type(uint256).max);
     }
 
     receive() external payable virtual {
-        // If we don't use this pattern, somebody can create a Lido withdrawal and claim it to this contract
+        // If we don't use this pattern, somebody can create a Lido withdrawal, claim it to this contract
         // Making `$.lidoLockedETH -= msg.value` revert
         VaultStorage storage $ = _getPufferVaultStorage();
         if ($.isLidoWithdrawal) {
@@ -105,9 +114,11 @@ contract PufferVault is
 
     /**
      * @dev See {IERC4626-totalAssets}.
-     * Eventually, stETH will not exist anymore, and the Vault will represent shares of total ETH holdings
-     * ETH to stETH is always 1:1 (stETH is rebasing token)
-     * Sum of EL assets + Vault Assets
+     * Eventually, stETH will not be part of this vault anymore, and the Vault(pufETH) will represent shares of total ETH holdings
+     * Because stETH is a rebasing token, its ratio with ETH is 1:1
+     * Because of that our ETH holdings backing the system are:
+     * stETH balance of this vault + stETH balance locked in EigenLayer + stETH balance that is the process of withdrawal from Lido
+     * + ETH balance of this vault
      */
     function totalAssets() public view virtual override returns (uint256) {
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + getPendingLidoETHAmount()
@@ -120,6 +131,7 @@ contract PufferVault is
     function getELBackingEthAmount() public view virtual returns (uint256 ethAmount) {
         VaultStorage storage $ = _getPufferVaultStorage();
         // When we initiate withdrawal from EigenLayer, the shares are deducted from the `lockedAmount`
+        // In that case the locked amount goes to 0 and the pendingWithdrawalAmount increases
         uint256 lockedAmount = _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
         uint256 pendingWithdrawalAmount =
             _EIGEN_STETH_STRATEGY.sharesToUnderlyingView($.eigenLayerPendingWithdrawalSharesAmount);
@@ -136,7 +148,8 @@ contract PufferVault is
     }
 
     /**
-     * @notice Deposits stETH into `stETH` EigenLayer strategy
+     * @notice Deposits stETH into `stETH EigenLayer strategy`
+     * Restricted access
      * @param amount the amount of stETH to deposit
      */
     function depositToEigenLayer(uint256 amount) external virtual restricted {
@@ -172,6 +185,13 @@ contract PufferVault is
         });
     }
 
+    /**
+     * @notice Claims stETH withdrawals from EigenLayer
+     * Restricted access
+     * @param queuedWithdrawal The queued withdrawal details
+     * @param tokens The tokens to be withdrawn
+     * @param middlewareTimesIndex The index of middleware times
+     */
     function claimWithdrawalFromEigenLayer(
         IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
         IERC20[] calldata tokens,
