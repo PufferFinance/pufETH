@@ -12,8 +12,9 @@ The Puffer Vault is in charge of custodying funds for the protocol. Initially it
 #### High-level Concepts
 
 This document organizes methods according to the following themes (click each to be taken to the relevant section):
-* [Depositing ETH](#depositing-eth)
-* [Other Functions](#other-functions)
+* [Depositing](#depositing)
+* [Withdrawing](#withdrawing)
+* [Getter Methods](#getter-methods)
 
 #### Important state variables
 
@@ -48,6 +49,8 @@ This function allows the vault to deposit stETH into EigenLayer's stETH strategy
 
 *Requirements*
 * Only callable by the operations or community multisigs
+
+---
 
 ### Withdrawing
 
@@ -118,6 +121,8 @@ This function claims withdrawals that were previously queued. This completes the
 
 *Requirements*:
 * There must be a corresponding pending claim that is ready to be claimed from Lido. In other words, the withdrawal must have been previously queued, and that withdrawal claim must be ready for redemption
+
+---
 
 ### Getter Methods
 
