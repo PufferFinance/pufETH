@@ -21,7 +21,7 @@ The PufferOracle contract maintains state variables related to the amount of ETH
 
 * `uint256 internal constant _UPDATE_INTERVAL`: Defines an interval of blocks that Proof of Reserves may not be posted twice within. For example, if the interval is 10 blocks, and Proof of Reserves was posted on block 1, then Proof of Reserves may not be posted again until block 11
 * `uint256 ethAmount`: The amount of ETH that is not locked in the beacon chain, corresponding to a running validator. This could be ETH that lives within the `PufferVault` in the form of stETH or WETH or it could also correspond to stETH locked in EigenLayer's stETH strategy contract
-* `uint256 lockedETH`: The amount of ETH that is locked in the beacon chain, correpsonding to a running validator
+* `uint256 lockedETH`: The amount of ETH that is locked in the beacon chain, corresponding to a running validator
 * `uint256 pufETHTotalSupply`: The total outstanding amount of pufETH
 * `uint256 lastUpdate`: The last block for which Proof of Reserves was posted
 
