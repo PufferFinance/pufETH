@@ -254,7 +254,6 @@ contract Timelock {
         address accessManager
     ) internal pure {
         // Assume that the multisig wallets are different addresses
-
         // Sanity check
         if (communityMultisig == address(0)) {
             revert BadAddress();
