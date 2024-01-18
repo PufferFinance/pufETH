@@ -335,6 +335,12 @@ contract PufferTest is Test {
     function test_usdt_to_pufETH() public giveToken(BINANCE, USDT, alice, 2_175_000_000) withCaller(alice) {
         uint256 tokenInAmount = 2_175_000_000; // 2175 USDT
 
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
+
         // Manually edited the route code for USDT -> stETH
         // Last 20 bytes is the address of where the stETH is going
         // (AdEa807cE68B17a32cE7CB80757c1B16cBca7887) is the address of PufferDepositor
@@ -354,6 +360,12 @@ contract PufferTest is Test {
     function test_usdc_to_pufETH() public giveToken(BINANCE, USDC, dave, 20_000_000_000) withCaller(dave) {
         uint256 tokenInAmount = 20_000_000_000; // 20k USDC
 
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
+
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
         // (AdEa807cE68B17a32cE7CB80757c1B16cBca7887) is the address of pufferDepositor
@@ -371,6 +383,12 @@ contract PufferTest is Test {
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
         uint256 tokenInAmount = 1000 ether; // 1000 APE
+
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
 
         // Manually edited the route code for APE -> stETH
         // Last 20 bytes is the address of where the stETH is going
@@ -432,9 +450,11 @@ contract PufferTest is Test {
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
         uint256 tokenInAmount = 10_000_000_000; // 10k USDC
 
-        // To get the route code
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
         // Change tokenIn, and to if needed
-        // https://swap.sushi.com/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&amount=2000000000&maxPriceImpact=0.005&gasPrice=33538046487&to=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&preferSushi=false
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
 
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
