@@ -38,6 +38,10 @@ contract Timelock {
      */
     event DelayChanged(uint256 oldDelay, uint256 newDelay);
     /**
+     * @notice Emitted when the pauser changes from `oldPauser` to `newPauser`
+     */
+    event PauserChanged(address oldPauser, address newPauser);
+    /**
      * @notice Emitted when a transaction is queued
      * @param txHash The keccak256 hash of the queued transaction
      * @param target The address to which the transaction will be sent
@@ -69,10 +73,6 @@ contract Timelock {
      */
     address public immutable OPERATIONS_MULTISIG;
     /**
-     * @notice Can only pause the system
-     */
-    address public immutable PAUSER_MULTISIG;
-    /**
      * @notice AccessManager
      */
     AccessManager public immutable ACCESS_MANAGER;
@@ -86,6 +86,10 @@ contract Timelock {
      */
     uint256 public delay;
     /**
+     * @notice Can only pause the system
+     */
+    address public pauserMultisig;
+    /**
      * @notice Transaction queue
      */
     mapping(bytes32 transactionHash => uint256 lockedUntil) public queue;
@@ -93,17 +97,14 @@ contract Timelock {
     constructor(
         address communityMultisig,
         address operationsMultisig,
-        address pauserMultisig,
+        address pauser,
         address accessManager,
         uint256 initialDelay
     ) {
-        _validateAddress(communityMultisig);
-        _validateAddress(operationsMultisig);
-        _validateAddress(pauserMultisig);
-        _validateAddress(accessManager);
+        _validateAddresses(communityMultisig, operationsMultisig, pauser, accessManager);
         COMMUNITY_MULTISIG = communityMultisig;
         OPERATIONS_MULTISIG = operationsMultisig;
-        PAUSER_MULTISIG = pauserMultisig;
+        pauserMultisig = pauser;
         ACCESS_MANAGER = AccessManager(accessManager);
         _setDelay(initialDelay);
     }
@@ -134,7 +135,7 @@ contract Timelock {
      */
     function pause(address[] calldata targets) public {
         // Community multisig can call this by via executeTransaction
-        if (msg.sender != PAUSER_MULTISIG && msg.sender != address(this)) {
+        if (msg.sender != pauserMultisig && msg.sender != address(this)) {
             revert Unauthorized();
         }
 
@@ -217,6 +218,22 @@ contract Timelock {
         _setDelay(newDelay);
     }
 
+    /**
+     * @notice Sets a new pauser for the timelock
+     * @param newPauser The address of the new pauser
+     */
+    function setPauser(address newPauser) public {
+        if (msg.sender != address(this)) {
+            revert Unauthorized();
+        }
+        _setPauser(newPauser);
+    }
+
+    function _setPauser(address newPauser) internal {
+        emit PauserChanged(pauserMultisig, newPauser);
+        pauserMultisig = newPauser;
+    }
+
     function _setDelay(uint256 newDelay) internal {
         if (newDelay <= MINIMUM_DELAY) {
             revert InvalidDelay(newDelay);
@@ -230,8 +247,25 @@ contract Timelock {
         return target.call(callData);
     }
 
-    function _validateAddress(address input) internal pure {
-        if (input == address(0)) {
+    function _validateAddresses(
+        address communityMultisig,
+        address operationsMultisig,
+        address pauser,
+        address accessManager
+    ) internal pure {
+        // Assume that the multisig wallets are different addresses
+
+        // Sanity check
+        if (communityMultisig == address(0)) {
+            revert BadAddress();
+        }
+        if (operationsMultisig == address(0)) {
+            revert BadAddress();
+        }
+        if (pauser == address(0)) {
+            revert BadAddress();
+        }
+        if (accessManager == address(0)) {
             revert BadAddress();
         }
     }

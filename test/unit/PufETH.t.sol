@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "erc4626-tests/ERC4626.test.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { IPufferVault } from "src/interface/IPufferVault.sol";
+import { IAccessManaged } from "openzeppelin/access/manager/IAccessManaged.sol";
 import { PufferDepositor } from "src/PufferDepositor.sol";
 import { PufferOracle } from "src/PufferOracle.sol";
 import { PufferVault } from "src/PufferVault.sol";
@@ -65,6 +66,24 @@ contract PufETHTest is ERC4626Test {
 
         vm.expectRevert(IPufferVault.WithdrawalsAreDisabled.selector);
         pufferVault.redeem(1000 ether, address(this), address(this));
+    }
+
+    function test_roles_setup() public {
+        address msgSender = makeAddr("random");
+        vm.startPrank(msgSender);
+
+        uint256[] memory amounts = new uint256[](1);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
+        pufferVault.initiateETHWithdrawalsFromLido(amounts);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
+        pufferVault.depositToEigenLayer(1);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
+        pufferVault.initiateStETHWithdrawalFromEigenLayer(1);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
+        pufferVault.upgradeToAndCall(address(pufferDepositor), "");
     }
 
     // All withdrawals are disabled, we override these tests to not revert

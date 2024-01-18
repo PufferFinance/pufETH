@@ -65,9 +65,9 @@ contract DeployPuffETH is BaseScript {
 
     address stETHAddress;
 
-    address operationsMultisig = makeAddr("operations"); //@todo this
-    address communityMultisig = _broadcaster;
-    address pauserMultisig = makeAddr("pauser"); //@todo this
+    address operationsMultisig = vm.envOr("OPERATIONS_MULTISIG", makeAddr("operationsMultisig"));
+    address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
+    address communityMultisig = vm.envOr("COMMUNITY_MULTISIG", makeAddr("communityMultisig"));
 
     function run() public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
@@ -91,8 +91,8 @@ contract DeployPuffETH is BaseScript {
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,
             operationsMultisig: operationsMultisig,
-            pauserMultisig: pauserMultisig,
-            initialDelay: 3 days
+            pauser: pauserMultisig,
+            initialDelay: 7 days
         });
 
         {

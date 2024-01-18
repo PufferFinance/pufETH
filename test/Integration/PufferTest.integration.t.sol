@@ -22,6 +22,7 @@ import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
+import { Timelock } from "src/Timelock.sol";
 
 contract PufferTest is Test {
     /**
@@ -56,6 +57,7 @@ contract PufferTest is Test {
     PufferVault public pufferVault;
     AccessManager public accessManager;
     PufferOracle public pufferOracle;
+    Timelock public timelock;
 
     // Lido contract (stETH)
     IStETH stETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
@@ -89,8 +91,8 @@ contract PufferTest is Test {
     // Storage slot for the Consensus Layer Balance in stETH
     bytes32 internal constant CL_BALANCE_POSITION = 0xa66d35f054e68143c18f32c990ed5cb972bb68a68f500cd2dd3a16bbf3686483; // keccak256("lido.Lido.beaconBalance");
 
-    address COMMUNITY_MULTISIG = makeAddr("pufferDeployer"); // In this case the contract deployer is this 'multisig'
-    address OPERATIONS_MULTISIG = makeAddr("operations");
+    address COMMUNITY_MULTISIG;
+    address OPERATIONS_MULTISIG;
 
     function setUp() public {
         // By forking to block 18812842, tests will start BEFORE the Lido oracle rebase
@@ -107,11 +109,13 @@ contract PufferTest is Test {
         pufferVault = PufferVault(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         pufferOracle = PufferOracle(payable(deployment.pufferOracle));
+        timelock = Timelock(payable(deployment.timelock));
 
-        // vm.startPrank(COMMUNITY_MULTISIG);
-        // pufferDepositor.allowToken(IERC20(APE));
-        // vm.stopPrank();
+        COMMUNITY_MULTISIG = timelock.COMMUNITY_MULTISIG();
+        OPERATIONS_MULTISIG = timelock.OPERATIONS_MULTISIG();
 
+        vm.label(COMMUNITY_MULTISIG, "COMMUNITY_MULTISIG");
+        vm.label(OPERATIONS_MULTISIG, "OPERATIONS_MULTISIG");
         vm.label(address(stETH), "stETH");
         vm.label(address(APE), "APE");
         vm.label(address(USDT), "USDT");
