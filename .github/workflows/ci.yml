@@ -9,22 +9,22 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  # tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Install Foundry
-  #       uses: foundry-rs/foundry-toolchain@v1
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
-  #     - name: Install deps
-  #       run: forge install
+      - name: Install deps
+        run: forge install
 
-  #     - name: Run tests
-  #       run: forge test -vvv --match-path './test/unit/*'
+      - name: Run tests
+        run: forge test -vvv --match-path './test/unit/*'
 
-  #     # - name: Check gas snapshots
-  #     #   run: forge snapshot 
+      # - name: Check gas snapshots
+      #   run: forge snapshot 
   
   slither: 
     runs-on: ubuntu-latest

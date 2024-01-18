@@ -22,6 +22,7 @@ import { IWstETH } from "src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
+import { Timelock } from "src/Timelock.sol";
 
 contract PufferTest is Test {
     /**
@@ -56,6 +57,7 @@ contract PufferTest is Test {
     PufferVault public pufferVault;
     AccessManager public accessManager;
     PufferOracle public pufferOracle;
+    Timelock public timelock;
 
     // Lido contract (stETH)
     IStETH stETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
@@ -71,11 +73,11 @@ contract PufferTest is Test {
     address dave = makeAddr("dave");
     address eve = makeAddr("eve");
 
-    // We are taking CZ's money
+    // Use Binance exchange address for mainnet fork tests to get ETH + erc20s
     address BINANCE = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
-    // Maker got WETH
+    // Use Maker address for mainnet fork tests to get wETH
     address MAKER_VAULT = 0x2F0b23f53734252Bda2277357e97e1517d6B042A;
-    // Binance doesn't hold stETH, we need to take it from Blast deposit contract
+    // Use Blast deposit contract for mainnet fork tests to get stETH
     address BLAST_DEPOSIT = 0x5F6AE08B8AeB7078cf2F96AFb089D7c9f51DA47d;
 
     // Token addresses
@@ -89,12 +91,12 @@ contract PufferTest is Test {
     // Storage slot for the Consensus Layer Balance in stETH
     bytes32 internal constant CL_BALANCE_POSITION = 0xa66d35f054e68143c18f32c990ed5cb972bb68a68f500cd2dd3a16bbf3686483; // keccak256("lido.Lido.beaconBalance");
 
-    address COMMUNITY_MULTISIG = makeAddr("pufferDeployer"); // In this case the deployer is 'multisig'
-    address OPERATIONS_MULTISIG = makeAddr("operations");
+    address COMMUNITY_MULTISIG;
+    address OPERATIONS_MULTISIG;
 
     function setUp() public {
-        // 1 block after allowance increase for stETH on EL
-        // https://etherscan.io/tx/0xc16610a3dc3e8732e3fbb7761f6e1c0e44869cba5a41b058d2b3abce98833667
+        // By forking to block 18812842, tests will start BEFORE the Lido oracle rebase
+        // Lido oracle has some checks, and due to those checks when we want to rebase will roll the block number to 18819958
         vm.createSelectFork(vm.rpcUrl("mainnet"), 18812842);
 
         // Deploy the contracts on the fork above
@@ -107,11 +109,13 @@ contract PufferTest is Test {
         pufferVault = PufferVault(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         pufferOracle = PufferOracle(payable(deployment.pufferOracle));
+        timelock = Timelock(payable(deployment.timelock));
 
-        // vm.startPrank(COMMUNITY_MULTISIG);
-        // pufferDepositor.allowToken(IERC20(APE));
-        // vm.stopPrank();
+        COMMUNITY_MULTISIG = timelock.COMMUNITY_MULTISIG();
+        OPERATIONS_MULTISIG = timelock.OPERATIONS_MULTISIG();
 
+        vm.label(COMMUNITY_MULTISIG, "COMMUNITY_MULTISIG");
+        vm.label(OPERATIONS_MULTISIG, "OPERATIONS_MULTISIG");
         vm.label(address(stETH), "stETH");
         vm.label(address(APE), "APE");
         vm.label(address(USDT), "USDT");
@@ -124,13 +128,13 @@ contract PufferTest is Test {
     }
 
     function _setupUsdcFork() internal {
-        // USDC token got an upgrade, because of that we create another fork, to test that it works
+        // Test against mainnet fork where USDC received an upgrade
         // https://www.circle.com/blog/announcing-usdc-v2.2
         vm.createSelectFork(vm.rpcUrl("mainnet"), 19011889);
         _setupContracts();
     }
 
-    // Transfer `token` from Binance to `to`
+    // Transfer `token` from Binance to `to` to fill accounts in mainnet fork tests
     modifier giveToken(address from, address token, address to, uint256 amount) {
         vm.startPrank(from);
         SafeERC20.safeTransfer(IERC20(token), to, amount);
@@ -145,16 +149,16 @@ contract PufferTest is Test {
     }
 
     modifier deployNewUsdc() {
-        // Workaround for deploying new usdc fork
+        // Workaround for deploying new USDC fork
         // This modifier needs to be called first
         _setupUsdcFork();
         _;
     }
 
     function _increaseELstETHCap() public {
-        // This function is simulating a rebase from this transaction
+        // An example of EL increasing the cap
+        // We copied the callldata from this transaction to simulate it
         // https://etherscan.io/tx/0xc16610a3dc3e8732e3fbb7761f6e1c0e44869cba5a41b058d2b3abce98833667
-        vm.roll(18819958);
         vm.startPrank(0xe7fFd467F7526abf9c8796EDeE0AD30110419127); // EL
         (bool success,) = 0xBE1685C81aA44FF9FB319dD389addd9374383e90.call( // El Multisig
             hex"6a761202000000000000000000000000a6db1a8c5a981d1536266d2a393c5f8ddb210eaf00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000074000000000000000000000000000000000000000000000000000000000000005c40825f38f000000000000000000000000369e6f597e22eab55ffb173c6d9cd234bd699111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000657eb4f30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004a46a76120200000000000000000000000040a2accbd92bca938b02010e17a5b8929b49130d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000042000000000000000000000000000000000000000000000000000000000000002a48d80ff0a000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002440093c4b944d05dfe6df7645a86cd2206016c51564d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004411c70c9d000000000000000000000000000000000000000000002a5a058fc295ed000000000000000000000000000000000000000000000000002a5a058fc295ed000000001bee69b7dfffa4e2d53c2a2df135c388ad25dcd20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004411c70c9d000000000000000000000000000000000000000000002a5a058fc295ed000000000000000000000000000000000000000000000000002a5a058fc295ed0000000054945180db7943c0ed0fee7edab2bd24620256bc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004411c70c9d000000000000000000000000000000000000000000002a5a058fc295ed000000000000000000000000000000000000000000000000002a5a058fc295ed00000000858646372cc42e1a627fce94aa7a7033e7cf075a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000024fabc1cbc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000a6db1a8c5a981d1536266d2a393c5f8ddb210eaf00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c30b32ae3865c0fd6cc396243889688a34f95c45a9110fe0aadc60b2a6e99e383d5d67668ffa2f5481f0003d26a5aa6b07746dd6b6162db411c585f31483efd6961b000000000000000000000000e7ffd467f7526abf9c8796edee0ad30110419127000000000000000000000000000000000000000000000000000000000000000001e3d807e6e26f9702b76782c559ef94158f44da655c8eb4e5d26f1e7cea4ef6287fa6b6da3baae46e6f8da28111d64ab62e07a0f4b80d3e418e1f8b89d62b34621c0000000000000000000000000000000000000000000000000000000000"
@@ -164,10 +168,10 @@ contract PufferTest is Test {
     }
 
     function _rebaseLido() internal {
-        // This function is simulating a rebase from this transaction
+        // Simulates stETH rebasing by fast-forwarding block 18819958 where Lido oracle rebased.  // Submits the same call data as the Lido oracle.
         // https://etherscan.io/tx/0xc308f3173b7a73b62751c42b5349203fa2684ad9b977cac5daf74582ff87d9ab
         vm.roll(18819958);
-        vm.startPrank(0x140Bd8FbDc884f48dA7cb1c09bE8A2fAdfea776E); // Whitelisted Oracle
+        vm.startPrank(0x140Bd8FbDc884f48dA7cb1c09bE8A2fAdfea776E); // Lido's whitelisted Oracle
         (bool success,) = LIDO_ACCOUNTING_ORACLE.call(
             hex"fc7377cd00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000007a2aff000000000000000000000000000000000000000000000000000000000004b6bb00000000000000000000000000000000000000000000000000207cc3840da37700000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000291edebdc938e7a00000000000000000000000000000000000000000000000000d37c862e1201902f400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000260000000000000000000000000000000000000000003b7c24bbc12e7a67c59354500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001af7a147aadae04565041a10836ae2210426a05e5e4d60834a4d8ebc716f2948c000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000060cb00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000004918"
         );
@@ -316,7 +320,7 @@ contract PufferTest is Test {
         uint256 assetsBefore = pufferVault.totalAssets();
 
         // Initiate Withdrawals from lido
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
 
         assertApproxEqRel(assetsBefore, pufferVault.totalAssets(), 0.001e18, "bad accounting");
@@ -334,6 +338,12 @@ contract PufferTest is Test {
 
     function test_usdt_to_pufETH() public giveToken(BINANCE, USDT, alice, 2_175_000_000) withCaller(alice) {
         uint256 tokenInAmount = 2_175_000_000; // 2175 USDT
+
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
 
         // Manually edited the route code for USDT -> stETH
         // Last 20 bytes is the address of where the stETH is going
@@ -354,6 +364,12 @@ contract PufferTest is Test {
     function test_usdc_to_pufETH() public giveToken(BINANCE, USDC, dave, 20_000_000_000) withCaller(dave) {
         uint256 tokenInAmount = 20_000_000_000; // 20k USDC
 
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
+
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
         // (AdEa807cE68B17a32cE7CB80757c1B16cBca7887) is the address of pufferDepositor
@@ -371,6 +387,12 @@ contract PufferTest is Test {
 
     function test_ape_to_pufETH() public giveToken(BINANCE, APE, charlie, 1000 ether) withCaller(charlie) {
         uint256 tokenInAmount = 1000 ether; // 1000 APE
+
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
+        // Change tokenIn, and to if needed
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
 
         // Manually edited the route code for APE -> stETH
         // Last 20 bytes is the address of where the stETH is going
@@ -432,9 +454,11 @@ contract PufferTest is Test {
     function test_usdc_to_pufETH_permit() public giveToken(BINANCE, USDC, bob, 10_000_000_000) withCaller(bob) {
         uint256 tokenInAmount = 10_000_000_000; // 10k USDC
 
-        // To get the route code
+        // To get the route code from SushiSwap, our frontend will call Sushi's backend, change the tokenIn, amount, slippage and gasPrice
+        // `to` will be a constant and that is our `PufferDepositor`
         // Change tokenIn, and to if needed
-        // https://swap.sushi.com/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&amount=2000000000&maxPriceImpact=0.005&gasPrice=33538046487&to=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&preferSushi=false
+        // Here is an example response
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xF629cBd94d3791C9250152BD8dfBDF380E2a3B9c&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=10000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xB279d48442aAfCF8F2af6d9E7d5d9C23f63b4e16&preferSushi=false
 
         // Manually edited the route code for USDC -> stETH
         // Last 20 bytes is the address of where the stETH is going
@@ -524,7 +548,7 @@ contract PufferTest is Test {
         _increaseELstETHCap();
 
         // Deposit to EL
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
 
         assertGt(_EIGEN_STETH_STRATEGY.userUnderlying(address(pufferVault)), 0, "no deposit to EL from the Vault");
@@ -596,7 +620,7 @@ contract PufferTest is Test {
         // 1 wei diff because of rounding
         assertApproxEqAbs(assetsBefore, 1000 ether, 1, "should have 1k ether");
 
-        vm.startPrank(COMMUNITY_MULTISIG);
+        vm.startPrank(OPERATIONS_MULTISIG);
         // EL Reverts
         vm.expectRevert("Pausable: index is paused");
         pufferVault.depositToEigenLayer(1000 ether);

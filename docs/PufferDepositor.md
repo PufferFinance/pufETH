@@ -80,7 +80,7 @@ Allows the depositing of wrapped stETH into the `PufferVault` contract. It will 
 * Takes the specified amount of wrapped stETH from the caller
 * Unwraps the provided wrapped stETH into stETH
 * Deposits the newly unwrapped stETH into the `PufferVault` contract
-* Mints pufETH to the caller, correpsonding to the asset amount deposited
+* Mints pufETH to the caller, corresponding to the asset amount deposited
 
 *Requirements*
 * Called must have previously approved the amount of wrapped stETH to be taken by the `PufferDepositor` contract
