@@ -2,10 +2,11 @@
 
 ## Overview
 
-Prior to Puffer's full mainnet launch, users have the opportunity to deposit stETH to earn rewards from Puffer and EigenLayer's early adopter programs. Additionally, users without stETH can easily participate, as the contract supports swapping tokens to stETH before depositing.
+pufETH is a native liquid restaking token (nLRT) that is undergoing development. Before Puffer's mainnet launch, pufETH holders will earn LST yield, Puffer points, and may participate in DeFi all without lockups. 
 
-In exchange, depositors receive pufETH, a yield-bearing ERC20 token that appreciates in value as the underlying stETH in the contract accrues. Importantly, pufETH is a liquid token meaning users earn stETH yield, Puffer points, and EigenLayer points all without lockups. This token can be held, traded, or utilized throughout DeFi both before and after the full Puffer mainnet launch.
+Prior to Puffer's full mainnet launch, users have the opportunity to deposit stETH into the [PufferVault](./PufferVault.md) to participate in Puffer's early adopter program. Additionally, users without stETH can easily participate, as the contract supports swapping tokens to stETH before depositing. In exchange, depositors receive pufETH which appreciates in value as the underlying stETH in the contract accrues. 
 
+The PufferVault's stETH will be deposited into EigenLayer's stETH strategy contract if it has not reached it's cap.
 
 ## Puffer Mainnet Launch
 
