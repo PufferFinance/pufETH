@@ -64,9 +64,6 @@ contract PufferVault is
         __AccessManaged_init(accessManager);
         __ERC4626_init(_ST_ETH);
         __ERC20_init("pufETH", "pufETH");
-        // Approve stETH to Lido && EigenLayer
-        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), type(uint256).max);
-        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), type(uint256).max);
     }
 
     receive() external payable virtual {
@@ -153,6 +150,7 @@ contract PufferVault is
      * @param amount the amount of stETH to deposit
      */
     function depositToEigenLayer(uint256 amount) external virtual restricted {
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), amount);
         _EIGEN_STRATEGY_MANAGER.depositIntoStrategy({ strategy: _EIGEN_STETH_STRATEGY, token: _ST_ETH, amount: amount });
     }
 
@@ -228,6 +226,7 @@ contract PufferVault is
         }
         $.lidoLockedETH += lockedAmount;
 
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
         emit RequestedWithdrawals(requestIds);
         return requestIds;
