@@ -102,9 +102,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     }
 
     /**
-     * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
-     * @param permitData The permit data containing the approval information
-     * @return pufETHAmount The amount of pufETH received from the deposit
+     * @inheritdoc IPufferDepositor
      */
     function depositWstETH(IPufferDepositor.Permit calldata permitData)
         external

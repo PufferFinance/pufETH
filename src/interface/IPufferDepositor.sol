@@ -61,4 +61,11 @@ interface IPufferDepositor {
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
     ) external returns (uint256 pufETHAmount);
+
+    /**
+     * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
+     * @param permitData The permit data containing the approval information
+     * @return pufETHAmount The amount of pufETH received from the deposit
+     */
+    function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
 }

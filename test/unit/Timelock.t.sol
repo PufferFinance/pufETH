@@ -34,6 +34,7 @@ contract TimelockTest is Test {
     function test_initial_access_manager_setup(address caller) public {
         vm.assume(caller != timelock.COMMUNITY_MULTISIG());
         vm.assume(caller != timelock.OPERATIONS_MULTISIG());
+        vm.assume(caller != address(timelock));
 
         (bool canCall, uint32 delay) =
             accessManager.canCall(caller, address(pufferVault), PufferVault.initiateETHWithdrawalsFromLido.selector);
