@@ -25,6 +25,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     IStETH internal immutable _ST_ETH;
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
+    address internal constant _1INCH_ROUTER = 0x1111111254EEB25477B68fb85Ed929f73A960582;
     ISushiRouter internal constant _SUSHI_ROUTER = ISushiRouter(0x5550D13389bB70F45fCeF58f19f6b6e87F6e747d);
 
     /**
@@ -41,6 +42,54 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(PUFFER_VAULT), type(uint256).max);
+    }
+
+    /**
+     * @inheritdoc IPufferDepositor
+     */
+    function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
+        public
+        virtual
+        restricted
+        returns (uint256 pufETHAmount)
+    {
+        SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
+        SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_1INCH_ROUTER), amountIn);
+
+        // PUFFER_VAULT.deposit will revert if we get no stETH from this contract
+        (bool success, bytes memory returnData) = _1INCH_ROUTER.call(callData);
+        if (!success) {
+            revert SwapFailed(address(tokenIn), amountIn);
+        }
+
+        uint256 amountOut = abi.decode(returnData, (uint256));
+
+        if (amountOut == 0) {
+            revert SwapFailed(address(tokenIn), amountIn);
+        }
+
+        return PUFFER_VAULT.deposit(amountOut, msg.sender);
+    }
+
+    /**
+     * @inheritdoc IPufferDepositor
+     */
+    function swapAndDepositWithPermit1Inch(
+        address tokenIn,
+        IPufferDepositor.Permit calldata permitData,
+        bytes calldata callData
+    ) public virtual restricted returns (uint256 pufETHAmount) {
+        try ERC20Permit(address(tokenIn)).permit({
+            owner: permitData.owner,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
+
+        return swapAndDeposit1Inch(tokenIn, permitData.amount, callData);
     }
 
     /**
@@ -64,6 +113,10 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
             route: routeCode
         });
 
+        if (stETHAmountOut == 0) {
+            revert SwapFailed(address(tokenIn), amountIn);
+        }
+
         return PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
     }
 
@@ -86,19 +139,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
             r: permitData.r
         }) { } catch { }
 
-        SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), permitData.amount);
-        SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_SUSHI_ROUTER), permitData.amount);
-
-        uint256 stETHAmountOut = _SUSHI_ROUTER.processRoute({
-            tokenIn: tokenIn,
-            amountIn: permitData.amount,
-            tokenOut: address(_ST_ETH),
-            amountOutMin: amountOutMin,
-            to: address(this),
-            route: routeCode
-        });
-
-        return PUFFER_VAULT.deposit(stETHAmountOut, msg.sender);
+        return swapAndDeposit(tokenIn, permitData.amount, amountOutMin, routeCode);
     }
 
     /**
