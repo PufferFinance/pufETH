@@ -20,6 +20,8 @@ import { LidoWithdrawalQueueMock } from "test/mocks/LidoWithdrawalQueueMock.sol"
 import { stETHStrategyMock } from "test/mocks/stETHStrategyMock.sol";
 import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { IWETH } from "src/interface/Other/IWETH.sol";
+import { WETH9 } from "test/mocks/WETH9.sol";
 
 /**
  * @title DeployPuffer
@@ -47,6 +49,7 @@ contract DeployPuffETH is BaseScript {
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
@@ -64,6 +67,7 @@ contract DeployPuffETH is BaseScript {
     AccessManager accessManager;
 
     address stETHAddress;
+    address wethAddress;
 
     address operationsMultisig = vm.envOr("OPERATIONS_MULTISIG", makeAddr("operationsMultisig"));
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
@@ -98,12 +102,14 @@ contract DeployPuffETH is BaseScript {
         {
             (
                 IStETH stETH,
+                IWETH weth,
                 ILidoWithdrawalQueue lidoWithdrawalQueue,
                 IStrategy stETHStrategy,
                 IEigenLayer eigenStrategyManager
             ) = _getArgs();
 
             stETHAddress = address(stETH);
+            wethAddress = address(weth);
 
             // Deploy implementation contracts
             pufferVaultImplementation =
@@ -142,6 +148,7 @@ contract DeployPuffETH is BaseScript {
             pufferVaultImplementation: address(pufferVaultImplementation),
             pufferOracle: address(pufferOracle),
             stETH: stETHAddress,
+            weth: wethAddress,
             timelock: address(timelock)
         });
     }
@@ -234,6 +241,7 @@ contract DeployPuffETH is BaseScript {
         internal
         returns (
             IStETH stETH,
+            IWETH weth,
             ILidoWithdrawalQueue lidoWithdrawalQueue,
             IStrategy stETHStrategy,
             IEigenLayer eigenStrategyManager
@@ -241,11 +249,13 @@ contract DeployPuffETH is BaseScript {
     {
         if (isMainnet()) {
             stETH = _ST_ETH;
+            weth = _WETH;
             lidoWithdrawalQueue = _LIDO_WITHDRAWAL_QUEUE;
             stETHStrategy = _EIGEN_STETH_STRATEGY;
             eigenStrategyManager = _EIGEN_STRATEGY_MANAGER;
         } else {
             stETH = IStETH(address(new stETHMock()));
+            weth = new WETH9();
             lidoWithdrawalQueue = new LidoWithdrawalQueueMock();
             stETHStrategy = new stETHStrategyMock();
             eigenStrategyManager = new EigenLayerManagerMock();

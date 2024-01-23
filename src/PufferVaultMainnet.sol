@@ -14,20 +14,20 @@ import { IWETH } from "src/interface/Other/IWETH.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultMainnet is PufferVault {
-    // slither-disable-next-line unused-state
-    IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IWETH internal immutable _WETH;
 
     constructor(
         IStETH stETH,
+        IWETH weth,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager
     ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
         _ST_ETH = stETH;
+        _WETH = weth;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _EIGEN_STETH_STRATEGY = stETHStrategy;
         _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
-        // Approve stETH to Lido && EL
         _disableInitializers();
     }
 
@@ -35,6 +35,7 @@ contract PufferVaultMainnet is PufferVault {
      * @notice Changes token from stETH to WETH
      */
     function initialize() public reinitializer(2) {
+        // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage $ = _getERC4626StorageInternal();
         $._asset = _WETH;
     }
@@ -46,11 +47,14 @@ contract PufferVaultMainnet is PufferVault {
      * Sum of EL assets + Vault Assets
      */
     function totalAssets() public view virtual override returns (uint256) {
+        // If we are dealing with native ETH deposit, we need to deduct callvalue from the balance
+        uint256 callValue;
+        assembly {
+            callValue := callvalue()
+        }
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + _WETH.balanceOf(address(this))
-            + address(this).balance; //@todo when you add oracle pufferOracle.getLockedEthAmount()
+            + (address(this).balance - callValue); //@todo when you add oracle pufferOracle.getLockedEthAmount()
     }
-
-    //@todo weth wrapping and unwrapping logic, native ETH deposit method
 
     /**
      * @notice Withdrawals are allowed an the asset out is WETH
@@ -84,6 +88,44 @@ contract PufferVaultMainnet is PufferVault {
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return assets;
+    }
+
+    /**
+     * @notice Deposits native ETH
+     */
+    function depositETH(address receiver) public payable virtual returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        if (msg.value > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
+        }
+
+        uint256 shares = previewDeposit(msg.value);
+        _mint(receiver, shares);
+        emit Deposit(_msgSender(), receiver, msg.value, shares);
+
+        return shares;
+    }
+
+    /**
+     * @notice Transfers ETH to a specified address
+     * @dev Restricted to PufferProtocol
+     * We use it to transfer ETH to PufferModule
+     * copied from https://github.com/Vectorized/solady/blob/fb11b3e9ea6c1aafdbd0a1515ff440509d60bff9/src/utils/SafeTransferLib.sol#L64
+     * @param to The address to transfer ETH to
+     * @param ethAmount The amount of ETH to transfer
+     */
+    function transferETH(address to, uint256 ethAmount) external restricted {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(call(gas(), to, ethAmount, codesize(), 0x00, codesize(), 0x00)) {
+                mstore(0x00, 0xb12d13eb) // `ETHTransferFailed()`.
+                revert(0x1c, 0x04)
+            }
+        }
+    }
+
+    function burn(uint256 shares) public {
+        _burn(msg.sender, shares);
     }
 
     // slither-disable-next-line dead-code
