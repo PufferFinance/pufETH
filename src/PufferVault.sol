@@ -14,6 +14,9 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import { ERC20Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20PermitUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
 /**
  * @title PufferVault
@@ -25,6 +28,7 @@ contract PufferVault is
     IERC721Receiver,
     PufferVaultStorage,
     AccessManagedUpgradeable,
+    ERC20PermitUpgradeable,
     ERC4626Upgradeable,
     UUPSUpgradeable
 {
@@ -62,6 +66,7 @@ contract PufferVault is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+        __ERC20Permit_init("pufETH");
         __ERC4626_init(_ST_ETH);
         __ERC20_init("pufETH", "pufETH");
     }
@@ -237,6 +242,13 @@ contract PufferVault is
      */
     function onERC721Received(address, address, uint256, bytes calldata) external virtual returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    /**
+     * @notice Returns the number of decimals used to get its user representation.
+     */
+    function decimals() public pure override(ERC20Upgradeable, ERC4626Upgradeable) returns (uint8) {
+        return 18;
     }
 
     /**
