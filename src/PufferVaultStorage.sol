@@ -16,9 +16,14 @@ abstract contract PufferVaultStorage {
      *      +-----------------------------------------------------------+
      */
     struct VaultStorage {
+        // 2 Slots for Redemption logic
         uint256 lidoLockedETH;
         uint256 eigenLayerPendingWithdrawalSharesAmount;
         bool isLidoWithdrawal;
+        // 1 Slot for daily withdrawal limits
+        uint96 dailyWithdrawalLimit;
+        uint96 withdrawnToday;
+        uint64 lastWithdrawalDay;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.storage")) - 1)) & ~bytes32(uint256(0xff))

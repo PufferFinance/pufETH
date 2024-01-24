@@ -15,6 +15,17 @@ import { IWETH } from "src/interface/Other/IWETH.sol";
  */
 contract PufferVaultMainnet is PufferVault {
     /**
+     * Throws if the withdrawal will exceed daily withdrawal limit
+     */
+    error ExceededDailyWithdrawalLimit(uint256 dailyWithdrawalLimit, uint256 withdrawnToday, uint256 withdrawalAmount);
+
+    /**
+     * Emitted when the daily withdrawal limit is set
+     * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
+     */
+    event DailyWithdrawalLimitSet(uint96 oldLimit, uint96 newLimit);
+
+    /**
      * @dev The Wrapped Ethereum ERC20 token
      */
     IWETH internal immutable _WETH;
@@ -39,8 +50,11 @@ contract PufferVaultMainnet is PufferVault {
      */
     function initialize() public reinitializer(2) {
         // In this initialization, we swap out the underlying stETH with WETH
-        ERC4626Storage storage $ = _getERC4626StorageInternal();
-        $._asset = _WETH;
+        ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
+        erc4626Storage._asset = _WETH;
+
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
     }
 
     /**
@@ -69,6 +83,8 @@ contract PufferVaultMainnet is PufferVault {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
+        _checkDailyWithdrawalLimits(assets); //@todo figure if it is better to override `maxWithdraw`
+
         _wrapETH(assets);
 
         uint256 shares = previewWithdraw(assets);
@@ -90,12 +106,32 @@ contract PufferVaultMainnet is PufferVault {
 
         uint256 assets = previewRedeem(shares);
 
+        _checkDailyWithdrawalLimits(assets); //@todo figure if it is better to override `maxWithdraw`
+
         _wrapETH(assets);
 
         // solhint-disable-next-line func-named-parameters
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return assets;
+    }
+
+    /**
+     * @param withdrawalAmount is the assets amount, not shares
+     */
+    function _checkDailyWithdrawalLimits(uint256 withdrawalAmount) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // Check if it's a new day to reset the withdrawal count
+        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
+            $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+            $.withdrawnToday = 0;
+        }
+
+        if ($.withdrawnToday + withdrawalAmount > $.dailyWithdrawalLimit) {
+            revert ExceededDailyWithdrawalLimit($.dailyWithdrawalLimit, $.withdrawnToday, withdrawalAmount);
+        }
+
+        $.withdrawnToday += uint96(withdrawalAmount);
     }
 
     /**
@@ -145,6 +181,17 @@ contract PufferVaultMainnet is PufferVault {
      */
     function burn(uint256 shares) public {
         _burn(msg.sender, shares);
+    }
+
+    /**
+     * @notice Sets a new daily withdrawal limit
+     * @dev Restricted to DAO
+     * @param newLimit The new daily limit to be set
+     */
+    function setDailyLimit(uint96 newLimit) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        emit DailyWithdrawalLimitSet($.dailyWithdrawalLimit, newLimit);
+        $.dailyWithdrawalLimit = newLimit;
     }
 
     function _wrapETH(uint256 assets) internal {
