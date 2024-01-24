@@ -121,6 +121,12 @@ contract PufferVaultMainnet is PufferVault {
      */
     function _checkDailyWithdrawalLimits(uint256 withdrawalAmount) internal {
         VaultStorage storage $ = _getPufferVaultStorage();
+
+        // If daily withdrawal limit is 0, then there is no limit
+        if ($.dailyWithdrawalLimit == 0) {
+            return;
+        }
+
         // Check if it's a new day to reset the withdrawal count
         if ($.lastWithdrawalDay < block.timestamp / 1 days) {
             $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
