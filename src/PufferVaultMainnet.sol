@@ -14,6 +14,9 @@ import { IWETH } from "src/interface/Other/IWETH.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultMainnet is PufferVault {
+    /**
+     * @dev The Wrapped Ethereum ERC20 token
+     */
     IWETH internal immutable _WETH;
 
     constructor(
@@ -58,13 +61,15 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Withdrawals are allowed an the asset out is WETH
-     * Copied the original ERC4626 code back to override `PufferVault`
+     * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
      */
     function withdraw(uint256 assets, address receiver, address owner) public virtual override returns (uint256) {
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
+
+        _wrapETH(assets);
 
         uint256 shares = previewWithdraw(assets);
         // solhint-disable-next-line func-named-parameters
@@ -75,7 +80,7 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Withdrawals are allowed an the asset out is WETH
-     * Copied the original ERC4626 code back to override `PufferVault`
+     * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
      */
     function redeem(uint256 shares, address receiver, address owner) public virtual override returns (uint256) {
         uint256 maxShares = maxRedeem(owner);
@@ -84,6 +89,9 @@ contract PufferVaultMainnet is PufferVault {
         }
 
         uint256 assets = previewRedeem(shares);
+
+        _wrapETH(assets);
+
         // solhint-disable-next-line func-named-parameters
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
@@ -115,6 +123,13 @@ contract PufferVaultMainnet is PufferVault {
      * @param ethAmount The amount of ETH to transfer
      */
     function transferETH(address to, uint256 ethAmount) external restricted {
+        // Our Vault will hold ETH & WETH
+        // If we don't have enough ETH for the transfer, unwrap WETH
+        uint256 ethBalance = address(this).balance;
+        if (ethBalance < ethAmount) {
+            _WETH.withdraw(ethAmount - ethBalance);
+        }
+
         /// @solidity memory-safe-assembly
         assembly {
             if iszero(call(gas(), to, ethAmount, codesize(), 0x00, codesize(), 0x00)) {
@@ -124,18 +139,20 @@ contract PufferVaultMainnet is PufferVault {
         }
     }
 
+    /**
+     * @notice Allows the `msg.sender` to burn his shares
+     * @param shares The amount of shares to burn
+     */
     function burn(uint256 shares) public {
         _burn(msg.sender, shares);
     }
 
-    // slither-disable-next-line dead-code
-    function _wrap(uint256 amount) internal {
-        _WETH.deposit{ value: amount }();
-    }
+    function _wrapETH(uint256 assets) internal {
+        uint256 wethBalance = _WETH.balanceOf(address(this));
 
-    // slither-disable-next-line dead-code
-    function _unwrap(uint256 amount) internal {
-        _WETH.withdraw(amount);
+        if (wethBalance < assets) {
+            _WETH.deposit{ value: assets - wethBalance }();
+        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
