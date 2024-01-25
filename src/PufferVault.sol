@@ -167,9 +167,6 @@ contract PufferVault is
     function initiateStETHWithdrawalFromEigenLayer(uint256 sharesToWithdraw) external virtual restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        uint256[] memory strategyIndexes = new uint256[](1);
-        strategyIndexes[0] = 0;
-
         IStrategy[] memory strategies = new IStrategy[](1);
         strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
 
@@ -180,7 +177,7 @@ contract PufferVault is
         $.eigenLayerPendingWithdrawalSharesAmount += sharesToWithdraw;
 
         _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
-            strategyIndexes: strategyIndexes,
+            strategyIndexes: new uint256[](1), // [0]
             strategies: strategies,
             shares: shares,
             withdrawer: address(this),

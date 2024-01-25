@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity >=0.8.18;
 
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
@@ -122,6 +122,9 @@ contract Timelock {
 
         bytes32 txHash = keccak256(abi.encode(target, callData));
         uint256 lockedUntil = block.timestamp + delay;
+        if (queue[txHash] != 0) {
+            revert InvalidTransaction(txHash);
+        }
         queue[txHash] = lockedUntil;
 
         emit TransactionQueued(txHash, target, callData, lockedUntil);
@@ -225,6 +228,9 @@ contract Timelock {
     function setPauser(address newPauser) public {
         if (msg.sender != address(this)) {
             revert Unauthorized();
+        }
+        if (newPauser == address(0)) {
+            revert BadAddress();
         }
         _setPauser(newPauser);
     }
