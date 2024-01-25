@@ -50,6 +50,7 @@ interface IPufferDepositor {
      */
     function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
         external
+        payable
         returns (uint256 pufETHAmount);
 
     /**
@@ -63,7 +64,7 @@ interface IPufferDepositor {
         address tokenIn,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata callData
-    ) external returns (uint256 pufETHAmount);
+    ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
@@ -75,6 +76,7 @@ interface IPufferDepositor {
      */
     function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
         external
+        payable
         returns (uint256 pufETHAmount);
 
     /**
@@ -90,7 +92,7 @@ interface IPufferDepositor {
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
-    ) external returns (uint256 pufETHAmount);
+    ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
