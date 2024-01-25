@@ -35,7 +35,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/DeployPuffETH.s.sol:DeployPuffETH -vvvv --rpc-url=... --broadcast
+ *         PK=${deployer_pk} forge script script/DeployPuffETH.s.sol:DeployPuffETH -vvvv --rpc-url=... --broadcast --slow
  */
 contract DeployPuffETH is BaseScript {
     uint64 constant ROLE_ID_UPGRADER = 1;
@@ -123,6 +123,7 @@ contract DeployPuffETH is BaseScript {
             address(pufferVaultImplementation), abi.encodeCall(PufferVault.initialize, (address(accessManager)))
         );
 
+        vm.serializeAddress(obj, "AccessManager", address(accessManager));
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));
         vm.serializeAddress(obj, "PufferDepositorImplementation", address(pufferDepositorImplementation));
         vm.serializeAddress(obj, "PufferVault", address(vaultProxy));

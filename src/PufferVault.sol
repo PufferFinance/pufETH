@@ -81,6 +81,14 @@ contract PufferVault is
     }
 
     /**
+     * @inheritdoc IPufferVault
+     */
+    function depositWithReferral(uint256 assets, address receiver, address referral) public virtual returns (uint256) {
+        emit DepositedWithReferral(receiver, assets, referral);
+        return deposit(assets, receiver);
+    }
+
+    /**
      * @notice Claims ETH withdrawals from Lido
      * @param requestIds An array of request IDs for the withdrawals
      */
