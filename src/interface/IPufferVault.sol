@@ -19,5 +19,13 @@ interface IPufferVault {
      * @notice Emitted when the user tries to do a withdrawal
      */
 
+    /**
+     * @dev Thrown when withdrawals are disabled and a withdrawal attempt is made
+     */
     error WithdrawalsAreDisabled();
+
+    /**
+     * @dev Thrown when a withdrawal attempt is made with invalid parameters
+     */
+    error InvalidWithdrawal();
 }

@@ -9,6 +9,7 @@ import { PufferOracle } from "../../src/PufferOracle.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IPufferVault } from "src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
@@ -207,6 +208,41 @@ contract PufferTest is Test {
             address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
         );
         vm.stopPrank();
+    }
+
+    function test_lido_withdrawal_dos()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), alice, 1 ether) // Blast got a lot of stETH
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 2000 ether) // Blast got a lot of stETH
+        withCaller(alice)
+    {
+        // Alice queues a withdrawal directly on Lido and sets the PufferVault as the recipient
+        uint256[] memory aliceAmounts = new uint256[](1);
+        aliceAmounts[0] = 1 ether;
+
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), 1 ether);
+        uint256[] memory aliceRequestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(aliceAmounts, address(pufferVault));
+
+        // Queue 2x 1000 ETH withdrawals on Lido
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1000 ether; // steth Amount
+        amounts[1] = 1000 ether; // steth Amount
+        vm.startPrank(OPERATIONS_MULTISIG);
+        uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
+
+        // Finalize all 3 withdrawals and fast forward to +10 days
+        _finalizeWithdrawals(requestIds[1]);
+        vm.roll(block.number + 10 days);
+
+        // We try to claim the withdrawal that wasn't requested through the PufferVault
+        vm.expectRevert(IPufferVault.InvalidWithdrawal.selector);
+        pufferVault.claimWithdrawalsFromLido(aliceRequestIds);
+
+        // This one should work
+        pufferVault.claimWithdrawalsFromLido(requestIds);
+
+        // 0.01% is the max delta
+        assertApproxEqRel(address(pufferVault).balance, 2000 ether, 0.0001e18, "oh no");
     }
 
     // This routes to Uniswap V3
