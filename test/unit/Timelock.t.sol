@@ -79,16 +79,18 @@ contract TimelockTest is Test {
 
         assertTrue(timelock.delay() != 15 days, "initial delay");
 
-        bytes32 txHash = timelock.queueTransaction(address(timelock), callData);
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(timelock), callData, operationId);
 
         uint256 lockedUntil = block.timestamp + timelock.delay();
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.Locked.selector, txHash, lockedUntil));
-        timelock.executeTransaction(address(timelock), callData);
+        timelock.executeTransaction(address(timelock), callData, operationId);
 
         vm.warp(lockedUntil + 1);
 
-        timelock.executeTransaction(address(timelock), callData);
+        timelock.executeTransaction(address(timelock), callData, operationId);
 
         assertEq(timelock.delay(), 15 days, "updated the delay");
     }
@@ -98,7 +100,7 @@ contract TimelockTest is Test {
 
         bytes memory callData = abi.encodeCall(Timelock.setDelay, (15 days));
         vm.expectRevert(abi.encodeWithSelector(Timelock.Unauthorized.selector));
-        timelock.queueTransaction(address(timelock), callData);
+        timelock.queueTransaction(address(timelock), callData, 10);
     }
 
     function test_pause_should_revert_if_bad_caller(address caller) public {
@@ -117,20 +119,22 @@ contract TimelockTest is Test {
 
         bytes memory callData = abi.encodeCall(Timelock.setDelay, (15 days));
 
-        bytes32 txHash = timelock.queueTransaction(address(timelock), callData);
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(timelock), callData, operationId);
 
         uint256 lockedUntil = block.timestamp + timelock.delay();
 
         assertTrue(timelock.queue(txHash) != 0, "queued");
 
-        timelock.cancelTransaction(address(timelock), callData);
+        timelock.cancelTransaction(address(timelock), callData, operationId);
 
         assertEq(timelock.queue(txHash), 0, "canceled");
 
         vm.warp(lockedUntil + 1);
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidTransaction.selector, txHash));
-        timelock.executeTransaction(address(timelock), callData);
+        timelock.executeTransaction(address(timelock), callData, operationId);
     }
 
     function test_cancel_reverts_if_caller_unauthorized(address caller) public {
@@ -138,7 +142,7 @@ contract TimelockTest is Test {
         vm.assume(caller != address(timelock));
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.Unauthorized.selector));
-        timelock.cancelTransaction(address(timelock), "");
+        timelock.cancelTransaction(address(timelock), "", 1);
     }
 
     function test_execute_reverts_if_caller_unauthorized(address caller) public {
@@ -146,7 +150,7 @@ contract TimelockTest is Test {
         vm.assume(caller != address(timelock));
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.Unauthorized.selector));
-        timelock.executeTransaction(address(timelock), "");
+        timelock.executeTransaction(address(timelock), "", 1);
     }
 
     function test_setDelay_reverts_if_caller_unauthorized(address caller) public {
@@ -172,14 +176,39 @@ contract TimelockTest is Test {
 
         bytes memory tooSmallDelayCallData = abi.encodeCall(Timelock.setDelay, (1 days));
 
+        uint256 operationId = 1234;
+
         // revert if the timelock is too small
-        (bool success, bytes memory returnData) = timelock.executeTransaction(address(timelock), tooSmallDelayCallData);
+        (bool success, bytes memory returnData) =
+            timelock.executeTransaction(address(timelock), tooSmallDelayCallData, operationId);
         assertEq(returnData, abi.encodeWithSelector(Timelock.InvalidDelay.selector, 1 days), "return data should fail");
         assertFalse(success, "should fail");
 
-        timelock.executeTransaction(address(timelock), callData);
+        timelock.executeTransaction(address(timelock), callData, 1234);
 
         assertEq(timelock.delay(), 15 days, "updated the delay");
+    }
+
+    function test_queueing_duplicate_transaction_different_operation_id() public {
+        vm.startPrank(timelock.OPERATIONS_MULTISIG());
+
+        bytes memory callData = abi.encodeCall(Timelock.setDelay, (15 days));
+
+        bytes32 expectedTx1Hash = keccak256(abi.encode(address(timelock), callData, 1234));
+        bytes32 expectedTx2Hash = keccak256(abi.encode(address(timelock), callData, 3333));
+
+        vm.expectEmit(true, true, true, true);
+        emit Timelock.TransactionQueued(
+            expectedTx1Hash, address(timelock), callData, 1234, block.timestamp + timelock.delay()
+        );
+        bytes32 txHash1 = timelock.queueTransaction(address(timelock), callData, 1234);
+
+        vm.expectEmit(true, true, true, true);
+        emit Timelock.TransactionQueued(
+            expectedTx2Hash, address(timelock), callData, 3333, block.timestamp + timelock.delay()
+        );
+        bytes32 txHash2 = timelock.queueTransaction(address(timelock), callData, 3333);
+        assertTrue(txHash1 != txHash2, "hashes must be different");
     }
 
     function test_pause_depositor(address caller) public {
@@ -214,7 +243,7 @@ contract TimelockTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Timelock.PauserChanged(existingPauser, newPauser);
-        timelock.executeTransaction(address(timelock), callData);
+        timelock.executeTransaction(address(timelock), callData, 1234);
 
         assertEq(newPauser, timelock.pauserMultisig(), "pauser did not change");
     }
