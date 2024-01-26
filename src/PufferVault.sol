@@ -81,6 +81,22 @@ contract PufferVault is
     }
 
     /**
+     * @inheritdoc ERC4626Upgradeable
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function deposit(uint256 assets, address receiver) public virtual override restricted returns (uint256) {
+        return super.deposit(assets, receiver);
+    }
+
+    /**
+     * @inheritdoc ERC4626Upgradeable
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function mint(uint256 shares, address receiver) public override restricted restricted returns (uint256) {
+        return super.mint(shares, receiver);
+    }
+
+    /**
      * @notice Claims ETH withdrawals from Lido
      * @param requestIds An array of request IDs for the withdrawals
      */
