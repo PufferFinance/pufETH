@@ -2,11 +2,11 @@
 
 ### Overview
 
-These Puffer contracts implement a timelock such that actions cannot be taken to change the functionality of the protocol without prior warning to users. To this end, we have a minimum lock time of 2 days for all sensitive actions, meaning nothing in the protocol can change without at least 2 days of prior notice. 
+These Puffer contracts implement a timelock such that actions cannot be taken by the Puffer team to change the functionality of the protocol without prior warning to users.
 
 ### Community and Operations Multisigs
 
-There are two different multisigs that have the capabilities to upgrade the contract, pause the contract, or perform planned phases corresponding with our launch, such as depositing into EigenLayer's stETH strategy contract if their cap has not been reached, and redeeming stETH for ETH via Lido. These two multisigs are referred to as the community multisig and the operations multisig. The community multisig will consist of trusted partners and respected members of the Ethereum community. This multisig will intervene in the protocol if any issues are found, and is allowed to execute transactions within 2 days. The operations multisig will consist of the core Puffer team, and will have a variable time lock period, but is expected to have a longer period than the community multisig in general.
+There are three different multisigs that together have the capabilities to upgrade the contract, pause the contract, or perform planned phases corresponding with our launch, such as depositing into EigenLayer's stETH strategy contract if their cap has not been reached, and redeeming stETH for ETH via Lido. These three multisigs are referred to as the community multisig, the operations multisig, and the pauser. The community multisig will consist of trusted partners and respected members of the Ethereum community. This multisig will intervene in the protocol if any issues are found, and is allowed to execute transactions immediately without queueing. The operations multisig will consist of the core Puffer team, and will have a variable time lock period. There is a minimum of a 2 day lock time period enforced for this multisig. This means the operations multisig must always queue desired transactions for at least 2 days before being able to execute them. Both the community and operations multisigs can cancel queued transactions. The pauser multisig is the only multisig capable of pausing functionalities on the contracts, and can do so without queueing or delaying.
 
 ### Mechanism
 
