@@ -92,7 +92,7 @@ contract PufferVault is
      * @inheritdoc ERC4626Upgradeable
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function mint(uint256 shares, address receiver) public override restricted restricted returns (uint256) {
+    function mint(uint256 shares, address receiver) public override restricted returns (uint256) {
         return super.mint(shares, receiver);
     }
 
