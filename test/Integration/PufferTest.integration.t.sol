@@ -711,6 +711,93 @@ contract PufferTest is Test {
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
     }
 
+    function test_withdraw_from_eigenLayer_dos()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+        giveToken(BLAST_DEPOSIT, address(stETH), alice, 1 ether) // Blast got a lot of stETH
+    {
+        // Simulate stETH cap increase call on EL
+        _increaseELstETHCap();
+
+        // Deposit to EL
+        vm.startPrank(OPERATIONS_MULTISIG);
+        pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
+
+        uint256 ownedShares = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(pufferVault), _EIGEN_STETH_STRATEGY);
+
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // Initiate the withdrawal for PufferVault
+        pufferVault.initiateStETHWithdrawalFromEigenLayer(ownedShares);
+
+        // Alice deposits to EL
+        vm.startPrank(alice);
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), 1 ether);
+        _EIGEN_STRATEGY_MANAGER.depositIntoStrategy({ strategy: _EIGEN_STETH_STRATEGY, token: _ST_ETH, amount: 1 ether });
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = IERC20(address(stETH));
+
+        uint256[] memory aliceShares = new uint256[](1);
+        aliceShares[0] = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(alice), _EIGEN_STETH_STRATEGY);
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonce =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory aliceQueuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: aliceShares,
+            depositor: address(alice),
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Queue withdrawal form alice
+        _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
+            strategyIndexes: new uint256[](1), // [0]
+            strategies: strategies,
+            shares: aliceShares,
+            withdrawer: address(pufferVault),
+            undelegateIfPossible: true
+        });
+
+        // PufferVault withdrawal
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = ownedShares;
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonceFromTheVault =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory queuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: shares,
+            depositor: address(pufferVault),
+            withdrawerAndNonce: withdrawerAndNonceFromTheVault,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Roll block number + 100k blocks into the future
+        vm.roll(block.number + 100000);
+
+        // Alice should not be able to withdraw through PufferVault
+        vm.expectRevert(IPufferVault.InvalidWithdrawal.selector);
+        pufferVault.claimWithdrawalFromEigenLayer(aliceQueuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same when locked");
+
+        // Normal PufferVault Withdrawal should work
+        pufferVault.claimWithdrawalFromEigenLayer(queuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same after withdrawal");
+    }
+
     function test_withdraw_from_eigenLayer()
         public
         giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
