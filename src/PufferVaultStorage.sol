@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 /**
  * @title PufferVaultStorage
  * @author Puffer Finance
@@ -19,6 +21,8 @@ abstract contract PufferVaultStorage {
         uint256 lidoLockedETH;
         uint256 eigenLayerPendingWithdrawalSharesAmount;
         bool isLidoWithdrawal;
+        EnumerableSet.UintSet lidoWithdrawals;
+        EnumerableSet.Bytes32Set eigenLayerWithdrawals;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.storage")) - 1)) & ~bytes32(uint256(0xff))

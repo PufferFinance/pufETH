@@ -24,4 +24,6 @@ contract EigenLayerManagerMock is IEigenLayer {
     ) external { }
 
     function stakerStrategyShares(address staker, IStrategy strategy) external view returns (uint256 shares) { }
+
+    function calculateWithdrawalRoot(QueuedWithdrawal memory queuedWithdrawal) external pure returns (bytes32) { }
 }
