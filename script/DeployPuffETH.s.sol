@@ -216,12 +216,13 @@ contract DeployPuffETH is BaseScript {
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);
 
         // Setup public access for PufferDepositor
-        bytes4[] memory publicSelectors = new bytes4[](5);
+        bytes4[] memory publicSelectors = new bytes4[](6);
         publicSelectors[0] = PufferDepositor.swapAndDeposit.selector;
         publicSelectors[1] = PufferDepositor.swapAndDepositWithPermit.selector;
         publicSelectors[2] = PufferDepositor.depositWstETH.selector;
         publicSelectors[3] = PufferDepositor.swapAndDepositWithPermit1Inch.selector;
         publicSelectors[4] = PufferDepositor.swapAndDeposit1Inch.selector;
+        publicSelectors[5] = PufferDepositor.depositStETH.selector;
 
         calldatas[3] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())

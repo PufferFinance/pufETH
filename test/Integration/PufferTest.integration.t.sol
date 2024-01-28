@@ -583,6 +583,29 @@ contract PufferTest is Test {
         assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
 
+    function test_deposit_stETH_permit()
+        public
+        giveToken(BLAST_DEPOSIT, address(_ST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "alice",
+                address(pufferDepositor),
+                3000 ether,
+                block.timestamp,
+                hex"260e7e1a220ea89b9454cbcdc1fcc44087325df199a3986e560d75db18b2e253"
+            )
+        );
+
+        // Permit is good in this case
+        pufferDepositor.depositStETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
+    }
+
     function test_deposit_wstETH()
         public
         giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
