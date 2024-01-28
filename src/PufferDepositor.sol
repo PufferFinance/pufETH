@@ -25,6 +25,10 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     IStETH internal immutable _ST_ETH;
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
+    /**
+     * @dev This is how both 1Inch and Sushi represent native ETH
+     */
+    address internal constant _NATIVE_ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant _1INCH_ROUTER = 0x1111111254EEB25477B68fb85Ed929f73A960582;
     ISushiRouter internal constant _SUSHI_ROUTER = ISushiRouter(0x5550D13389bB70F45fCeF58f19f6b6e87F6e747d);
 
@@ -49,15 +53,18 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      */
     function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
         public
+        payable
         virtual
         restricted
         returns (uint256 pufETHAmount)
     {
-        SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
-        SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_1INCH_ROUTER), amountIn);
+        if (tokenIn != _NATIVE_ETH) {
+            SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
+            SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_1INCH_ROUTER), amountIn);
+        }
 
         // PUFFER_VAULT.deposit will revert if we get no stETH from this contract
-        (bool success, bytes memory returnData) = _1INCH_ROUTER.call(callData);
+        (bool success, bytes memory returnData) = _1INCH_ROUTER.call{ value: msg.value }(callData);
         if (!success) {
             revert SwapFailed(address(tokenIn), amountIn);
         }
@@ -78,9 +85,9 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         address tokenIn,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata callData
-    ) public virtual restricted returns (uint256 pufETHAmount) {
+    ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -97,14 +104,17 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      */
     function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
         public
+        payable
         virtual
         restricted
         returns (uint256 pufETHAmount)
     {
-        SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
-        SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_SUSHI_ROUTER), amountIn);
+        if (tokenIn != _NATIVE_ETH) {
+            SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
+            SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_SUSHI_ROUTER), amountIn);
+        }
 
-        uint256 stETHAmountOut = _SUSHI_ROUTER.processRoute({
+        uint256 stETHAmountOut = _SUSHI_ROUTER.processRoute{ value: msg.value }({
             tokenIn: tokenIn,
             amountIn: amountIn,
             tokenOut: address(_ST_ETH),
@@ -128,9 +138,9 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
-    ) public virtual restricted returns (uint256 pufETHAmount) {
+    ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -151,7 +161,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         returns (uint256 pufETHAmount)
     {
         try ERC20Permit(address(_WST_ETH)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -164,6 +174,29 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
 
         return PUFFER_VAULT.deposit(stETHAmount, msg.sender);
+    }
+
+    /**
+     * @inheritdoc IPufferDepositor
+     */
+    function depositStETH(IPufferDepositor.Permit calldata permitData)
+        external
+        restricted
+        returns (uint256 pufETHAmount)
+    {
+        try ERC20Permit(address(_ST_ETH)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
+
+        SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);
+
+        return PUFFER_VAULT.deposit(permitData.amount, msg.sender);
     }
 
     /**

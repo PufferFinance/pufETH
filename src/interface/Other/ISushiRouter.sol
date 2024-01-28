@@ -12,5 +12,5 @@ interface ISushiRouter {
         uint256 amountOutMin,
         address to,
         bytes memory route
-    ) external returns (uint256 amountOut);
+    ) external payable returns (uint256 amountOut);
 }

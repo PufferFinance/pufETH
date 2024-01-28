@@ -33,7 +33,6 @@ interface IPufferDepositor {
      * @dev Struct representing a permit for a specific action.
      */
     struct Permit {
-        address owner;
         uint256 deadline;
         uint256 amount;
         uint8 v;
@@ -50,6 +49,7 @@ interface IPufferDepositor {
      */
     function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
         external
+        payable
         returns (uint256 pufETHAmount);
 
     /**
@@ -63,7 +63,7 @@ interface IPufferDepositor {
         address tokenIn,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata callData
-    ) external returns (uint256 pufETHAmount);
+    ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
@@ -75,6 +75,7 @@ interface IPufferDepositor {
      */
     function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
         external
+        payable
         returns (uint256 pufETHAmount);
 
     /**
@@ -90,7 +91,7 @@ interface IPufferDepositor {
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
         bytes calldata routeCode
-    ) external returns (uint256 pufETHAmount);
+    ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
@@ -98,4 +99,11 @@ interface IPufferDepositor {
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
     function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
+
+    /**
+     * @notice Deposits stETH into the Puffer Vault using Permit
+     * @param permitData The permit data containing the approval information
+     * @return pufETHAmount The amount of pufETH received from the deposit
+     */
+    function depositStETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
 }
