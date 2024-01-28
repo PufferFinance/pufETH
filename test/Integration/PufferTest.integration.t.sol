@@ -873,8 +873,7 @@ contract PufferTest is Test {
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
 
-        return
-            IPufferDepositor.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+        return IPufferDepositor.Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline, bytes32 domainSeparator)

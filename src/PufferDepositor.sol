@@ -87,7 +87,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         bytes calldata callData
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -140,7 +140,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         bytes calldata routeCode
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -161,7 +161,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         returns (uint256 pufETHAmount)
     {
         try ERC20Permit(address(_WST_ETH)).permit({
-            owner: permitData.owner,
+            owner: msg.sender,
             spender: address(this),
             value: permitData.amount,
             deadline: permitData.deadline,
@@ -174,6 +174,29 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
 
         return PUFFER_VAULT.deposit(stETHAmount, msg.sender);
+    }
+
+    /**
+     * @inheritdoc IPufferDepositor
+     */
+    function depositStETH(IPufferDepositor.Permit calldata permitData)
+        external
+        restricted
+        returns (uint256 pufETHAmount)
+    {
+        try ERC20Permit(address(_ST_ETH)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
+
+        SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);
+
+        return PUFFER_VAULT.deposit(permitData.amount, msg.sender);
     }
 
     /**
