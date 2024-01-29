@@ -46,4 +46,6 @@ interface IEigenLayer {
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     ) external;
+
+    function calculateWithdrawalRoot(QueuedWithdrawal memory queuedWithdrawal) external pure returns (bytes32);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity >=0.8.18;
 
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
@@ -46,23 +46,32 @@ contract Timelock {
      * @param txHash The keccak256 hash of the queued transaction
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction
+     * @param operationId The id of the operation used to identify the transaction
      * @param lockedUntil The timestamp when the transaction can be executed
      */
-    event TransactionQueued(bytes32 indexed txHash, address indexed target, bytes callData, uint256 lockedUntil);
+    event TransactionQueued(
+        bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId, uint256 lockedUntil
+    );
     /**
      * @notice Emitted when a transaction is canceled
      * @param txHash The keccak256 hash of the canceled transaction
      * @param target The address to which the transaction was to be sent
+     * @param operationId The id of the operation used to identify the transaction
      * @param callData The data that was to be sent along with the transaction
      */
-    event TransactionCanceled(bytes32 indexed txHash, address indexed target, bytes callData);
+    event TransactionCanceled(
+        bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId
+    );
     /**
      * @notice Emitted when a transaction is executed
      * @param txHash The keccak256 hash of the executed transaction
      * @param target The address to which the transaction was sent
+     * @param operationId The id of the operation used to identify the transaction
      * @param callData The data that was sent along with the transaction
      */
-    event TransactionExecuted(bytes32 indexed txHash, address indexed target, bytes callData);
+    event TransactionExecuted(
+        bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId
+    );
 
     /**
      * @notice Community multisig has 0 delay
@@ -113,18 +122,22 @@ contract Timelock {
      * @notice Operations multisig queues a transaction that can be executed by the operations multisig after the delay period
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction
+     * @param operationId The id of the operation used to identify the transaction
      * @return The keccak256 hash of the queued transaction
      */
-    function queueTransaction(address target, bytes memory callData) public returns (bytes32) {
+    function queueTransaction(address target, bytes memory callData, uint256 operationId) public returns (bytes32) {
         if (msg.sender != OPERATIONS_MULTISIG) {
             revert Unauthorized();
         }
 
-        bytes32 txHash = keccak256(abi.encode(target, callData));
+        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
         uint256 lockedUntil = block.timestamp + delay;
+        if (queue[txHash] != 0) {
+            revert InvalidTransaction(txHash);
+        }
         queue[txHash] = lockedUntil;
-
-        emit TransactionQueued(txHash, target, callData, lockedUntil);
+        // solhint-disable-next-line func-named-parameters
+        emit TransactionQueued(txHash, target, callData, operationId, lockedUntil);
 
         return txHash;
     }
@@ -152,17 +165,18 @@ contract Timelock {
      * @notice Cancels a queued transaction
      * @param target The address to which the transaction was to be sent
      * @param callData The data that was to be sent along with the transaction
+     * @param operationId The id of the operation used to identify the transaction
      */
-    function cancelTransaction(address target, bytes memory callData) public {
+    function cancelTransaction(address target, bytes memory callData, uint256 operationId) public {
         // Community multisig can call this by via executeTransaction
         if (msg.sender != OPERATIONS_MULTISIG && msg.sender != address(this)) {
             revert Unauthorized();
         }
 
-        bytes32 txHash = keccak256(abi.encode(target, callData));
+        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
         queue[txHash] = 0;
 
-        emit TransactionCanceled(txHash, target, callData);
+        emit TransactionCanceled(txHash, target, callData, operationId);
     }
 
     /**
@@ -170,10 +184,11 @@ contract Timelock {
      * Community multisig can execute transactions without any delay
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction
+     * @param operationId The id of the operation used to identify the transaction
      * @return success A boolean indicating whether the transaction was successful
      * @return returnData The data returned by the transaction
      */
-    function executeTransaction(address target, bytes calldata callData)
+    function executeTransaction(address target, bytes calldata callData, uint256 operationId)
         external
         returns (bool success, bytes memory returnData)
     {
@@ -187,7 +202,7 @@ contract Timelock {
             revert Unauthorized();
         }
 
-        bytes32 txHash = keccak256(abi.encode(target, callData));
+        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
         uint256 lockedUntil = queue[txHash];
 
         // slither-disable-next-line incorrect-equality
@@ -202,7 +217,7 @@ contract Timelock {
         queue[txHash] = 0;
         (success, returnData) = _executeTransaction(target, callData);
 
-        emit TransactionExecuted(txHash, target, callData);
+        emit TransactionExecuted(txHash, target, callData, operationId);
 
         return (success, returnData);
     }
@@ -225,6 +240,9 @@ contract Timelock {
     function setPauser(address newPauser) public {
         if (msg.sender != address(this)) {
             revert Unauthorized();
+        }
+        if (newPauser == address(0)) {
+            revert BadAddress();
         }
         _setPauser(newPauser);
     }

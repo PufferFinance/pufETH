@@ -10,6 +10,7 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { PufferVaultStorage } from "src/PufferVaultStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
@@ -32,6 +33,8 @@ contract PufferVault is
     ERC4626Upgradeable,
     UUPSUpgradeable
 {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for address;
 
     /**
@@ -81,6 +84,22 @@ contract PufferVault is
     }
 
     /**
+     * @inheritdoc ERC4626Upgradeable
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function deposit(uint256 assets, address receiver) public virtual override restricted returns (uint256) {
+        return super.deposit(assets, receiver);
+    }
+
+    /**
+     * @inheritdoc ERC4626Upgradeable
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function mint(uint256 shares, address receiver) public override restricted returns (uint256) {
+        return super.mint(shares, receiver);
+    }
+
+    /**
      * @notice Claims ETH withdrawals from Lido
      * @param requestIds An array of request IDs for the withdrawals
      */
@@ -91,6 +110,11 @@ contract PufferVault is
         $.isLidoWithdrawal = true;
 
         for (uint256 i = 0; i < requestIds.length; ++i) {
+            bool isValidWithdrawal = $.lidoWithdrawals.remove(requestIds[i]);
+            if (!isValidWithdrawal) {
+                revert InvalidWithdrawal();
+            }
+
             // slither-disable-next-line calls-loop
             _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
         }
@@ -167,9 +191,6 @@ contract PufferVault is
     function initiateStETHWithdrawalFromEigenLayer(uint256 sharesToWithdraw) external virtual restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        uint256[] memory strategyIndexes = new uint256[](1);
-        strategyIndexes[0] = 0;
-
         IStrategy[] memory strategies = new IStrategy[](1);
         strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
 
@@ -179,13 +200,15 @@ contract PufferVault is
         // Account for the shares
         $.eigenLayerPendingWithdrawalSharesAmount += sharesToWithdraw;
 
-        _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
-            strategyIndexes: strategyIndexes,
+        bytes32 withdrawalRoot = _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
+            strategyIndexes: new uint256[](1), // [0]
             strategies: strategies,
             shares: shares,
             withdrawer: address(this),
             undelegateIfPossible: true
         });
+
+        $.eigenLayerWithdrawals.add(withdrawalRoot);
     }
 
     /**
@@ -201,6 +224,12 @@ contract PufferVault is
         uint256 middlewareTimesIndex
     ) external virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
+
+        bytes32 withdrawalRoot = _EIGEN_STRATEGY_MANAGER.calculateWithdrawalRoot(queuedWithdrawal);
+        bool isValidWithdrawal = $.eigenLayerWithdrawals.remove(withdrawalRoot);
+        if (!isValidWithdrawal) {
+            revert InvalidWithdrawal();
+        }
 
         $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
 
@@ -233,6 +262,10 @@ contract PufferVault is
 
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
+
+        for (uint256 i = 0; i < requestIds.length; ++i) {
+            $.lidoWithdrawals.add(requestIds[i]);
+        }
         emit RequestedWithdrawals(requestIds);
         return requestIds;
     }

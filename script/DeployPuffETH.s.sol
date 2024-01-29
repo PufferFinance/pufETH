@@ -203,7 +203,7 @@ contract DeployPuffETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](4);
+        bytes[] memory calldatas = new bytes[](5);
 
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = PufferVault.depositToEigenLayer.selector;
@@ -222,16 +222,27 @@ contract DeployPuffETH is BaseScript {
         calldatas[2] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);
 
-        // Setup public access
-        bytes4[] memory publicSelectors = new bytes4[](5);
+        // Setup public access for PufferDepositor
+        bytes4[] memory publicSelectors = new bytes4[](6);
         publicSelectors[0] = PufferDepositor.swapAndDeposit.selector;
         publicSelectors[1] = PufferDepositor.swapAndDepositWithPermit.selector;
         publicSelectors[2] = PufferDepositor.depositWstETH.selector;
         publicSelectors[3] = PufferDepositor.swapAndDepositWithPermit1Inch.selector;
         publicSelectors[4] = PufferDepositor.swapAndDeposit1Inch.selector;
+        publicSelectors[5] = PufferDepositor.depositStETH.selector;
 
         calldatas[3] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
+        );
+
+        // Setup public access for PufferVault
+        bytes4[] memory publicSelectorsPufferVault = new bytes4[](2);
+        publicSelectorsPufferVault[0] = PufferVault.deposit.selector;
+        publicSelectorsPufferVault[1] = PufferVault.mint.selector;
+
+        calldatas[4] = abi.encodeCall(
+            AccessManager.setTargetFunctionRole,
+            (address(vaultProxy), publicSelectorsPufferVault, accessManager.PUBLIC_ROLE())
         );
 
         return calldatas;

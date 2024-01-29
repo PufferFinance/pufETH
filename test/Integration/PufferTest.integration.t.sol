@@ -9,6 +9,7 @@ import { PufferOracle } from "../../src/PufferOracle.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
+import { IPufferVault } from "src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
@@ -212,6 +213,41 @@ contract PufferTest is Test {
         vm.stopPrank();
     }
 
+    function test_lido_withdrawal_dos()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), alice, 1 ether) // Blast got a lot of stETH
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 2000 ether) // Blast got a lot of stETH
+        withCaller(alice)
+    {
+        // Alice queues a withdrawal directly on Lido and sets the PufferVault as the recipient
+        uint256[] memory aliceAmounts = new uint256[](1);
+        aliceAmounts[0] = 1 ether;
+
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), 1 ether);
+        uint256[] memory aliceRequestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(aliceAmounts, address(pufferVault));
+
+        // Queue 2x 1000 ETH withdrawals on Lido
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1000 ether; // steth Amount
+        amounts[1] = 1000 ether; // steth Amount
+        vm.startPrank(OPERATIONS_MULTISIG);
+        uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
+
+        // Finalize all 3 withdrawals and fast forward to +10 days
+        _finalizeWithdrawals(requestIds[1]);
+        vm.roll(block.number + 10 days);
+
+        // We try to claim the withdrawal that wasn't requested through the PufferVault
+        vm.expectRevert(IPufferVault.InvalidWithdrawal.selector);
+        pufferVault.claimWithdrawalsFromLido(aliceRequestIds);
+
+        // This one should work
+        pufferVault.claimWithdrawalsFromLido(requestIds);
+
+        // 0.01% is the max delta
+        assertApproxEqRel(address(pufferVault).balance, 2000 ether, 0.0001e18, "oh no");
+    }
+
     // This routes to Uniswap V3
     function test_swap_1inch() public giveToken(BINANCE, USDC, dave, 20_000_000_000) withCaller(dave) {
         SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufferDepositor), type(uint256).max);
@@ -244,6 +280,39 @@ contract PufferTest is Test {
         uint256 pufETH =
             pufferDepositor.swapAndDeposit1Inch({ amountIn: 1000 ether, tokenIn: address(CVX), callData: callData });
         assertGt(pufETH, 0, "minted");
+    }
+
+    function test_eth_sushi_swap() public withCaller(bob) {
+        vm.deal(bob, 1 ether);
+
+        // https://production.sushi.com/swap/v3.2?chainId=1&tokenIn=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE&tokenOut=0xae7ab96520de3a18e5e111b5eaab095312d7fe84&amount=1000000000000000000&maxPriceImpact=0.01&gasPrice=38676325847&to=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&preferSushi=false
+        bytes memory routeCode =
+            hex"0301ffff02014028DAAC072e492d34a3Afdbef0ba7e35D8b55C4C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc204C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2004028DAAC072e492d34a3Afdbef0ba7e35D8b55C400AdEa807cE68B17a32cE7CB80757c1B16cBca7887";
+
+        // 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE is native ETH on 1INCH
+        uint256 pufETH = pufferDepositor.swapAndDeposit{ value: 1 ether }({
+            amountIn: 1 ether,
+            tokenIn: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            amountOutMin: 1,
+            routeCode: routeCode
+        });
+        assertGt(pufETH, 0.98 ether, "minted");
+    }
+
+    function test_eth_1inch_swap() public withCaller(bob) {
+        vm.deal(bob, 1 ether);
+
+        // https://api.1inch.dev/swap/v5.2/1/swap?src=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&dst=0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84&amount=1000000000000000000&from=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&slippage=1&includeTokensInfo=true&includeProtocols=true&includeGas=true&receiver=0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887&allowPartialFill=true&disableEstimate=true
+        bytes memory callData =
+            hex"12aa3caf000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000adea807ce68b17a32ce7cb80757c1b16cbca78870000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000dbd2fc137a2fffc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000001220000f40000aa00a007e5c0d200000000000000000000000000000000000000008600006c00003000001640607f39c581f595b53c5cb19bd0b3f8da6c935e2ca00020d6bdbf787f39c581f595b53c5cb19bd0b3f8da6c935e2ca041207f39c581f595b53c5cb19bd0b3f8da6c935e2ca00004de0e9a3e00000000000000000000000000000000000000000000000000000000000000000020d6bdbf78ae7ab96520de3a18e5e111b5eaab095312d7fe8400a0f2fa6b66ae7ab96520de3a18e5e111b5eaab095312d7fe840000000000000000000000000000000000000000000000000de0b6b3a763fffc000000000000000000082908e5322eff80a06c4eca27ae7ab96520de3a18e5e111b5eaab095312d7fe841111111254eeb25477b68fb85ed929f73a9605828b1ccac8";
+
+        // 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE is native ETH on 1INCH
+        uint256 pufETH = pufferDepositor.swapAndDeposit1Inch{ value: 1 ether }({
+            amountIn: 1 ether,
+            tokenIn: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            callData: callData
+        });
+        assertGt(pufETH, 0.98 ether, "minted");
     }
 
     function test_swap_1inch_permit() public giveToken(BINANCE, USDC, bob, 20_000_000_000) withCaller(bob) {
@@ -517,6 +586,29 @@ contract PufferTest is Test {
         assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
 
+    function test_deposit_stETH_permit()
+        public
+        giveToken(BLAST_DEPOSIT, address(_ST_ETH), alice, 3000 ether)
+        withCaller(alice)
+    {
+        assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
+
+        IPufferDepositor.Permit memory permit = _signPermit(
+            _testTemps(
+                "alice",
+                address(pufferDepositor),
+                3000 ether,
+                block.timestamp,
+                hex"260e7e1a220ea89b9454cbcdc1fcc44087325df199a3986e560d75db18b2e253"
+            )
+        );
+
+        // Permit is good in this case
+        pufferDepositor.depositStETH(permit);
+
+        assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
+    }
+
     function test_deposit_wstETH()
         public
         giveToken(0x0B925eD163218f6662a35e0f0371Ac234f9E9371, address(_WST_ETH), alice, 3000 ether)
@@ -645,6 +737,93 @@ contract PufferTest is Test {
         assertApproxEqRel(totalETHBackingAmount, 14.79 ether, 0.4e18, "got eth");
     }
 
+    function test_withdraw_from_eigenLayer_dos()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
+        giveToken(BLAST_DEPOSIT, address(stETH), alice, 1 ether) // Blast got a lot of stETH
+    {
+        // Simulate stETH cap increase call on EL
+        _increaseELstETHCap();
+
+        // Deposit to EL
+        vm.startPrank(OPERATIONS_MULTISIG);
+        pufferVault.depositToEigenLayer(stETH.balanceOf(address(pufferVault)));
+
+        uint256 ownedShares = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(pufferVault), _EIGEN_STETH_STRATEGY);
+
+        uint256 assetsBefore = pufferVault.totalAssets();
+
+        // Initiate the withdrawal for PufferVault
+        pufferVault.initiateStETHWithdrawalFromEigenLayer(ownedShares);
+
+        // Alice deposits to EL
+        vm.startPrank(alice);
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_EIGEN_STRATEGY_MANAGER), 1 ether);
+        _EIGEN_STRATEGY_MANAGER.depositIntoStrategy({ strategy: _EIGEN_STETH_STRATEGY, token: _ST_ETH, amount: 1 ether });
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = IERC20(address(stETH));
+
+        uint256[] memory aliceShares = new uint256[](1);
+        aliceShares[0] = _EIGEN_STRATEGY_MANAGER.stakerStrategyShares(address(alice), _EIGEN_STETH_STRATEGY);
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonce =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory aliceQueuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: aliceShares,
+            depositor: address(alice),
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Queue withdrawal form alice
+        _EIGEN_STRATEGY_MANAGER.queueWithdrawal({
+            strategyIndexes: new uint256[](1), // [0]
+            strategies: strategies,
+            shares: aliceShares,
+            withdrawer: address(pufferVault),
+            undelegateIfPossible: true
+        });
+
+        // PufferVault withdrawal
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = ownedShares;
+
+        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonceFromTheVault =
+            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
+
+        IEigenLayer.QueuedWithdrawal memory queuedWithdrawal = IEigenLayer.QueuedWithdrawal({
+            strategies: strategies,
+            shares: shares,
+            depositor: address(pufferVault),
+            withdrawerAndNonce: withdrawerAndNonceFromTheVault,
+            withdrawalStartBlock: uint32(block.number),
+            delegatedAddress: address(0)
+        });
+
+        // Roll block number + 100k blocks into the future
+        vm.roll(block.number + 100000);
+
+        // Alice should not be able to withdraw through PufferVault
+        vm.expectRevert(IPufferVault.InvalidWithdrawal.selector);
+        pufferVault.claimWithdrawalFromEigenLayer(aliceQueuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same when locked");
+
+        // Normal PufferVault Withdrawal should work
+        pufferVault.claimWithdrawalFromEigenLayer(queuedWithdrawal, tokens, 0);
+
+        // 1 wei diff because of rounding
+        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "should remain the same after withdrawal");
+    }
+
     function test_withdraw_from_eigenLayer()
         public
         giveToken(BLAST_DEPOSIT, address(stETH), address(pufferVault), 1000 ether) // Blast got a lot of stETH
@@ -720,8 +899,7 @@ contract PufferTest is Test {
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
 
-        return
-            IPufferDepositor.Permit({ owner: t.owner, deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+        return IPufferDepositor.Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline, bytes32 domainSeparator)
