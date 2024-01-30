@@ -45,9 +45,10 @@ interface IPufferDepositor {
      * @param tokenIn The address of the token being swapped
      * @param amountIn The amount of `tokenIn` to swap
      * @param callData The encoded calldata for the swap, it is fetched from the 1Inch API `https://api.1inch.dev/swap/v5.2/1/swap`
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
+    function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData, address referral)
         external
         payable
         returns (uint256 pufETHAmount);
@@ -57,12 +58,14 @@ interface IPufferDepositor {
      * @param tokenIn The address of the token being swapped
      * @param permitData The permit data containing the approval information
      * @param callData The encoded calldata for the swap, it is fetched from the 1Inch API `https://api.1inch.dev/swap/v5.2/1/swap`
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
     function swapAndDepositWithPermit1Inch(
         address tokenIn,
         IPufferDepositor.Permit calldata permitData,
-        bytes calldata callData
+        bytes calldata callData,
+        address referral
     ) external payable returns (uint256 pufETHAmount);
 
     /**
@@ -71,12 +74,16 @@ interface IPufferDepositor {
      * @param amountIn The amount of `tokenIn` to swap
      * @param amountOutMin The minimum amount of stETH to receive from the swap
      * @param routeCode The encoded route for the swap
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
-        external
-        payable
-        returns (uint256 pufETHAmount);
+    function swapAndDeposit(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata routeCode,
+        address referral
+    ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Swaps `permitData.amount` of `tokenIn` for stETH using a permit and deposits it into the Puffer Vault
@@ -84,26 +91,34 @@ interface IPufferDepositor {
      * @param amountOutMin The minimum amount of stETH to receive from the swap
      * @param permitData The permit data containing the approval information
      * @param routeCode The encoded route for the swap
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
     function swapAndDepositWithPermit(
         address tokenIn,
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
-        bytes calldata routeCode
+        bytes calldata routeCode,
+        address referral
     ) external payable returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
      * @param permitData The permit data containing the approval information
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositWstETH(IPufferDepositor.Permit calldata permitData, address referral)
+        external
+        returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits stETH into the Puffer Vault using Permit
      * @param permitData The permit data containing the approval information
+     * @param referral The referral address (used off chain for PufferPoints distribution for those of you who are Early - Airdrop :)))
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositStETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositStETH(IPufferDepositor.Permit calldata permitData, address referral)
+        external
+        returns (uint256 pufETHAmount);
 }

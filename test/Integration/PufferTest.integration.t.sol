@@ -36,6 +36,8 @@ contract PufferTest is Test {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
+    address referral = makeAddr("referral");
+
     using stdStorage for StdStorage;
 
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -256,7 +258,8 @@ contract PufferTest is Test {
         uint256 pufETH = pufferDepositor.swapAndDeposit1Inch({
             amountIn: 20_000_000_000,
             tokenIn: address(USDC),
-            callData: callData
+            callData: callData,
+            referral: referral
         });
         assertGt(pufETH, 0, "minted");
     }
@@ -274,8 +277,12 @@ contract PufferTest is Test {
         bytes memory callData =
             hex"12aa3caf000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd090000000000000000000000004e3fbd56cd56c3e72c1403e103b45db9da5b9d2b000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000adea807ce68b17a32ce7cb80757c1b16cbca788700000000000000000000000000000000000000000000003635c9adc5dea000000000000000000000000000000000000000000000000000000829cccd01419aa7000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002100000000000000000000000000000000000000000000001f20001c400017a00a007e5c0d200000000000000000000000000000000015600013c0001000000e60000d05120b576491f1e6e5e62f1d8f26062ee822b40b0e0d44e3fbd56cd56c3e72c1403e103b45db9da5b9d2b0044394747c50000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000829cccd01419aa9000000000000000000000000000000000000000000000000000000000000000140607f39c581f595b53c5cb19bd0b3f8da6c935e2ca00020d6bdbf787f39c581f595b53c5cb19bd0b3f8da6c935e2ca041207f39c581f595b53c5cb19bd0b3f8da6c935e2ca00004de0e9a3e00000000000000000000000000000000000000000000000000000000000000000020d6bdbf78ae7ab96520de3a18e5e111b5eaab095312d7fe8400a0f2fa6b66ae7ab96520de3a18e5e111b5eaab095312d7fe840000000000000000000000000000000000000000000000001053999a0283354e000000000000000000072ba767a2fd9980a06c4eca27ae7ab96520de3a18e5e111b5eaab095312d7fe841111111254eeb25477b68fb85ed929f73a960582000000000000000000000000000000008b1ccac8";
 
-        uint256 pufETH =
-            pufferDepositor.swapAndDeposit1Inch({ amountIn: 1000 ether, tokenIn: address(CVX), callData: callData });
+        uint256 pufETH = pufferDepositor.swapAndDeposit1Inch({
+            amountIn: 1000 ether,
+            tokenIn: address(CVX),
+            callData: callData,
+            referral: referral
+        });
         assertGt(pufETH, 0, "minted");
     }
 
@@ -291,7 +298,8 @@ contract PufferTest is Test {
             amountIn: 1 ether,
             tokenIn: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
             amountOutMin: 1,
-            routeCode: routeCode
+            routeCode: routeCode,
+            referral: referral
         });
         assertGt(pufETH, 0.98 ether, "minted");
     }
@@ -307,7 +315,8 @@ contract PufferTest is Test {
         uint256 pufETH = pufferDepositor.swapAndDeposit1Inch{ value: 1 ether }({
             amountIn: 1 ether,
             tokenIn: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
-            callData: callData
+            callData: callData,
+            referral: referral
         });
         assertGt(pufETH, 0.98 ether, "minted");
     }
@@ -331,7 +340,8 @@ contract PufferTest is Test {
         uint256 pufETH = pufferDepositor.swapAndDepositWithPermit1Inch({
             permitData: permit,
             tokenIn: address(USDC),
-            callData: callData
+            callData: callData,
+            referral: referral
         });
 
         assertGt(pufETH, 0, "minted");
@@ -342,7 +352,12 @@ contract PufferTest is Test {
         bytes memory callData = hex"dead";
 
         vm.expectRevert();
-        pufferDepositor.swapAndDeposit1Inch({ amountIn: 20_000_000_000, tokenIn: address(USDC), callData: callData });
+        pufferDepositor.swapAndDeposit1Inch({
+            amountIn: 20_000_000_000,
+            tokenIn: address(USDC),
+            callData: callData,
+            referral: referral
+        });
     }
 
     function test_zero_stETH_deposit()
@@ -506,7 +521,13 @@ contract PufferTest is Test {
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(USDT), address(pufferDepositor), type(uint256).max);
-        pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDT, amountOutMin: 0, routeCode: routeCode });
+        pufferDepositor.swapAndDeposit({
+            amountIn: tokenInAmount,
+            tokenIn: USDT,
+            amountOutMin: 0,
+            routeCode: routeCode,
+            referral: referral
+        });
 
         assertGt(pufferVault.balanceOf(alice), 0, "alice pufETH");
         assertGt(stETH.balanceOf(address(pufferVault)), 0, "pufferVault should hold stETH");
@@ -531,7 +552,13 @@ contract PufferTest is Test {
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(USDC), address(pufferDepositor), type(uint256).max);
-        pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: USDC, amountOutMin: 0, routeCode: routeCode });
+        pufferDepositor.swapAndDeposit({
+            amountIn: tokenInAmount,
+            tokenIn: USDC,
+            amountOutMin: 0,
+            routeCode: routeCode,
+            referral: referral
+        });
 
         assertGt(pufferVault.balanceOf(dave), 0, "dave pufETH");
     }
@@ -555,7 +582,13 @@ contract PufferTest is Test {
 
         // USDT doesn't have a permit, so the user needs to approve it to our contract
         SafeERC20.safeIncreaseAllowance(IERC20(APE), address(pufferDepositor), type(uint256).max);
-        pufferDepositor.swapAndDeposit({ amountIn: tokenInAmount, tokenIn: APE, amountOutMin: 0, routeCode: routeCode });
+        pufferDepositor.swapAndDeposit({
+            amountIn: tokenInAmount,
+            tokenIn: APE,
+            amountOutMin: 0,
+            routeCode: routeCode,
+            referral: referral
+        });
 
         assertGt(pufferVault.balanceOf(charlie), 0, "charlie pufETH");
     }
@@ -578,7 +611,7 @@ contract PufferTest is Test {
         );
 
         // Permit is good in this case
-        pufferDepositor.depositWstETH(permit);
+        pufferDepositor.depositWstETH(permit, referral);
 
         assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
@@ -601,7 +634,7 @@ contract PufferTest is Test {
         );
 
         // Permit is good in this case
-        pufferDepositor.depositStETH(permit);
+        pufferDepositor.depositStETH(permit, referral);
 
         assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
@@ -620,7 +653,7 @@ contract PufferTest is Test {
 
         // Permit call will revert because of the bad domain separator for wstETH
         // But because we did the .approve, the transaction will succeed
-        pufferDepositor.depositWstETH(permit);
+        pufferDepositor.depositWstETH(permit, referral);
 
         assertGt(pufferVault.balanceOf(alice), 0, "alice got pufETH");
     }
@@ -657,7 +690,8 @@ contract PufferTest is Test {
             tokenIn: USDC,
             amountOutMin: 0,
             permitData: permit,
-            routeCode: routeCode
+            routeCode: routeCode,
+            referral: referral
         });
 
         assertGt(pufferVault.balanceOf(bob), 0, "bob pufETH");
@@ -692,7 +726,8 @@ contract PufferTest is Test {
             tokenIn: USDC,
             amountOutMin: 0,
             permitData: permit,
-            routeCode: routeCode
+            routeCode: routeCode,
+            referral: referral
         });
 
         assertGt(pufferVault.balanceOf(bob), 0, "bob got pufETH");

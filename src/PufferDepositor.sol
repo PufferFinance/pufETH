@@ -51,7 +51,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @inheritdoc IPufferDepositor
      */
-    function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData)
+    function swapAndDeposit1Inch(address tokenIn, uint256 amountIn, bytes calldata callData, address referral)
         public
         payable
         virtual
@@ -84,7 +84,8 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     function swapAndDepositWithPermit1Inch(
         address tokenIn,
         IPufferDepositor.Permit calldata permitData,
-        bytes calldata callData
+        bytes calldata callData,
+        address referral
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
             owner: msg.sender,
@@ -96,19 +97,19 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
             r: permitData.r
         }) { } catch { }
 
-        return swapAndDeposit1Inch(tokenIn, permitData.amount, callData);
+        return swapAndDeposit1Inch(tokenIn, permitData.amount, callData, referral);
     }
 
     /**
      * @inheritdoc IPufferDepositor
      */
-    function swapAndDeposit(address tokenIn, uint256 amountIn, uint256 amountOutMin, bytes calldata routeCode)
-        public
-        payable
-        virtual
-        restricted
-        returns (uint256 pufETHAmount)
-    {
+    function swapAndDeposit(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata routeCode,
+        address referral
+    ) public payable virtual restricted returns (uint256 pufETHAmount) {
         if (tokenIn != _NATIVE_ETH) {
             SafeERC20.safeTransferFrom(IERC20(tokenIn), msg.sender, address(this), amountIn);
             SafeERC20.safeIncreaseAllowance(IERC20(tokenIn), address(_SUSHI_ROUTER), amountIn);
@@ -137,7 +138,8 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         address tokenIn,
         uint256 amountOutMin,
         IPufferDepositor.Permit calldata permitData,
-        bytes calldata routeCode
+        bytes calldata routeCode,
+        address referral
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
             owner: msg.sender,
@@ -149,13 +151,19 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
             r: permitData.r
         }) { } catch { }
 
-        return swapAndDeposit(tokenIn, permitData.amount, amountOutMin, routeCode);
+        return swapAndDeposit({
+            tokenIn: tokenIn,
+            amountIn: permitData.amount,
+            amountOutMin: amountOutMin,
+            routeCode: routeCode,
+            referral: referral
+        });
     }
 
     /**
      * @inheritdoc IPufferDepositor
      */
-    function depositWstETH(IPufferDepositor.Permit calldata permitData)
+    function depositWstETH(IPufferDepositor.Permit calldata permitData, address referral)
         external
         restricted
         returns (uint256 pufETHAmount)
@@ -179,7 +187,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @inheritdoc IPufferDepositor
      */
-    function depositStETH(IPufferDepositor.Permit calldata permitData)
+    function depositStETH(IPufferDepositor.Permit calldata permitData, address referral)
         external
         restricted
         returns (uint256 pufETHAmount)
