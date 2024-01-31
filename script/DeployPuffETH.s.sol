@@ -77,16 +77,19 @@ contract DeployPuffETH is BaseScript {
         bytes32 pufferDepositorVault = bytes32("pufferDepositor");
         bytes32 pufferVaultSalt = bytes32("pufferVault");
 
+        address noImpl = address(new NoImplementation());
+
         // UUPS proxy for PufferDepositor
-        depositorProxy = new ERC1967Proxy{ salt: pufferDepositorVault }(address(new NoImplementation()), "");
+        depositorProxy = new ERC1967Proxy{ salt: pufferDepositorVault }(noImpl, "");
         vm.label(address(depositorProxy), "PufferDepositor");
 
         // UUPS proxy for PufferVault
-        vaultProxy = new ERC1967Proxy{ salt: pufferVaultSalt }(address(new NoImplementation()), "");
+        vaultProxy = new ERC1967Proxy{ salt: pufferVaultSalt }(noImpl, "");
         vm.label(address(vaultProxy), "PufferVault");
 
         // Deploy mock Puffer oracle
-        pufferOracle = new PufferOracle();
+        // pufferOracle = new PufferOracle();
+        pufferOracle = PufferOracle(address(0)); // skip deploying it
         timelock = new Timelock({
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,

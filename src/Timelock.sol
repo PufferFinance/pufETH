@@ -88,7 +88,7 @@ contract Timelock {
     /**
      * @notice Minimum delay enforced by the contract
      */
-    uint256 public constant MINIMUM_DELAY = 2 days;
+    uint256 public constant MINIMUM_DELAY = 7 days;
 
     /**
      * @notice Timelock delay in seconds
