@@ -1,8 +1,8 @@
 {
   "": "",
-  "PufferDepositor": "0xAdEa807cE68B17a32cE7CB80757c1B16cBca7887",
-  "PufferDepositorImplementation": "0x215AfA00F1EeFdF4cfBC3f0c7bD718979C34b623",
-  "PufferOracle": "0xc45cd0bbCE48B16F3B85Bb5Fc3BBC7D4C04cD039",
-  "PufferVault": "0x69abE2134F9cC5131302d1fBc9429895499384B0",
-  "PufferVaultImplementation": "0x4Af794D37a9f0c887b978Fd647242899E83b7857"
+  "PufferDepositor": "0x6352dEb5B90485b1C14B8827AA966e2EEfD23aeA",
+  "PufferDepositorImplementation": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+  "PufferOracle": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+  "PufferVault": "0xf770bF9384c5aaD8b8a6EFAb5951CF089656A371",
+  "PufferVaultImplementation": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
 }
