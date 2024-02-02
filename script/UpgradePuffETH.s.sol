@@ -17,6 +17,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { IWETH } from "src/interface/Other/IWETH.sol";
 import { WETH9 } from "test/mocks/WETH9.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
+import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
 /**
  * @title UpgradePufETH
@@ -45,7 +46,7 @@ contract UpgradePuffETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(address pufferVault) public broadcast {
+    function run(address pufferVault, address accessManager) public broadcast {
         (
             IStETH stETH,
             IWETH weth,
@@ -53,6 +54,9 @@ contract UpgradePuffETH is BaseScript {
             IStrategy stETHStrategy,
             IEigenLayer eigenStrategyManager
         ) = _getArgs();
+
+        //@todo this is for tests only
+        AccessManager(accessManager).grantRole(1, _broadcaster, 0);
 
         PufferVaultMainnet newImplementation =
             new PufferVaultMainnet(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager);
