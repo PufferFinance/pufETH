@@ -6,7 +6,6 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDepositor } from "src/PufferDepositor.sol";
-import { PufferOracle } from "src/PufferOracle.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { Timelock } from "src/Timelock.sol";
 import { NoImplementation } from "src/NoImplementation.sol";
@@ -58,7 +57,6 @@ contract DeployPuffETH is BaseScript {
 
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;
-    PufferOracle pufferOracle;
     Timelock timelock;
 
     ERC1967Proxy depositorProxy;
@@ -89,14 +87,12 @@ contract DeployPuffETH is BaseScript {
         vaultProxy = new ERC1967Proxy{ salt: pufferVaultSalt }(address(new NoImplementation()), "");
         vm.label(address(vaultProxy), "PufferVault");
 
-        // Deploy mock Puffer oracle
-        pufferOracle = new PufferOracle();
         timelock = new Timelock({
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,
             operationsMultisig: operationsMultisig,
             pauser: pauserMultisig,
-            initialDelay: 7 days
+            initialDelay: 7 days + 1
         });
 
         {
@@ -133,7 +129,6 @@ contract DeployPuffETH is BaseScript {
         vm.serializeAddress(obj, "PufferDepositorImplementation", address(pufferDepositorImplementation));
         vm.serializeAddress(obj, "PufferVault", address(vaultProxy));
         vm.serializeAddress(obj, "PufferVaultImplementation", address(pufferVaultImplementation));
-        vm.serializeAddress(obj, "PufferOracle", address(pufferOracle));
 
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/puffer.json");
@@ -146,7 +141,7 @@ contract DeployPuffETH is BaseScript {
             pufferDepositor: address(depositorProxy),
             pufferVault: address(vaultProxy),
             pufferVaultImplementation: address(pufferVaultImplementation),
-            pufferOracle: address(pufferOracle),
+            pufferOracle: address(0),
             stETH: stETHAddress,
             weth: wethAddress,
             timelock: address(timelock)
