@@ -164,14 +164,14 @@ contract PufferVaultMainnet is PufferVault {
      * @param ethAmount The amount of ETH to transfer
      */
     function transferETH(address to, uint256 ethAmount) external restricted {
-        // Our Vault will hold ETH & WETH
+        // Our Vault holds ETH & WETH
         // If we don't have enough ETH for the transfer, unwrap WETH
         uint256 ethBalance = address(this).balance;
         if (ethBalance < ethAmount) {
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
-        (bool success, ) = to.call{value: ethAmount}("");
+        (bool success,) = to.call{ value: ethAmount }("");
 
         if (!success) {
             revert ETHTransferFailed();
