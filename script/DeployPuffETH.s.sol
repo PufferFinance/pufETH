@@ -88,14 +88,12 @@ contract DeployPuffETH is BaseScript {
         vm.label(address(vaultProxy), "PufferVault");
 
         // Deploy mock Puffer oracle
-        // pufferOracle = new PufferOracle();
-        pufferOracle = PufferOracle(address(0)); // skip deploying it
         timelock = new Timelock({
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,
             operationsMultisig: operationsMultisig,
             pauser: pauserMultisig,
-            initialDelay: 7 days
+            initialDelay: 7 days + 1
         });
 
         {
@@ -130,7 +128,6 @@ contract DeployPuffETH is BaseScript {
         vm.serializeAddress(obj, "PufferDepositorImplementation", address(pufferDepositorImplementation));
         vm.serializeAddress(obj, "PufferVault", address(vaultProxy));
         vm.serializeAddress(obj, "PufferVaultImplementation", address(pufferVaultImplementation));
-        vm.serializeAddress(obj, "PufferOracle", address(pufferOracle));
 
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/puffer.json");
@@ -143,7 +140,7 @@ contract DeployPuffETH is BaseScript {
             pufferDepositor: address(depositorProxy),
             pufferVault: address(vaultProxy),
             pufferVaultImplementation: address(pufferVaultImplementation),
-            pufferOracle: address(pufferOracle),
+            pufferOracle: address(0),
             stETH: stETHAddress,
             timelock: address(timelock)
         });

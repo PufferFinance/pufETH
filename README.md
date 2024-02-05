@@ -28,6 +28,16 @@ Upon Puffer's full mainnet launch, stETH will be withdrawn from EigenLayer and t
 
 Following the withdrawal process, the ETH will be utilized to provision decentralized Ethereum validators within the Puffer protocol. This marks a transition from Lido LST rewards to Puffer Protocol rewards. Importantly, nothing needs to be done by pufETH holders! However, as the Puffer protocol operates, pufETH value is expected to increase faster as the token now captures both PoS and restaking rewards.
 
+## Contract addresses
+- PufferVault (pufETH token): 0xD9A442856C234a39a81a089C06451EBAa4306a72
+- PufferDepositor: 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF
+- AccessManager: 0x8c1686069474410E6243425f4a10177a94EBEE11
+- Timelock: 0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA
+
+## Audits
+- [BlockSec](./audits/BlockSec-pufETH-v1.pdf)
+- [SlowMist](./audits/SlowMist-pufETH-v1.pdf)
+
 # Tests
 
 <strong>Make sure you have access to a valid archive node RPC for ETH Mainnet (e.g. Infura)</strong>
