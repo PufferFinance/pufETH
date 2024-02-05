@@ -25,8 +25,8 @@ abstract contract PufferVaultStorage {
         EnumerableSet.UintSet lidoWithdrawals;
         EnumerableSet.Bytes32Set eigenLayerWithdrawals;
         // 1 Slot for daily withdrawal limits
-        uint96 dailyWithdrawalLimit;
-        uint96 withdrawnToday;
+        uint96 dailyAssetsWithdrawalLimit;
+        uint96 assetsWithdrawnToday;
         uint64 lastWithdrawalDay;
     }
 

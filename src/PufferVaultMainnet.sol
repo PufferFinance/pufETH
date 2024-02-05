@@ -7,6 +7,7 @@ import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.so
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title PufferVault
@@ -14,10 +15,7 @@ import { IWETH } from "src/interface/Other/IWETH.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultMainnet is PufferVault {
-    /**
-     * Throws if the withdrawal will exceed daily withdrawal limit
-     */
-    error ExceededDailyWithdrawalLimit(uint256 dailyWithdrawalLimit, uint256 withdrawnToday, uint256 withdrawalAmount);
+    error ETHTransferFailed();
 
     /**
      * Emitted when the daily withdrawal limit is set
@@ -37,11 +35,7 @@ contract PufferVaultMainnet is PufferVault {
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager
     ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
-        _ST_ETH = stETH;
         _WETH = weth;
-        _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
-        _EIGEN_STETH_STRATEGY = stETHStrategy;
-        _EIGEN_STRATEGY_MANAGER = eigenStrategyManager;
         _disableInitializers();
     }
 
@@ -62,15 +56,45 @@ contract PufferVaultMainnet is PufferVault {
      * Eventually, stETH will not exist anymore, and the Vault will represent shares of total ETH holdings
      * ETH to stETH is always 1:1 (stETH is rebasing token)
      * Sum of EL assets + Vault Assets
+     *
+     * NOTE on the native ETH deposit:
+     * When dealing with NATIVE ETH deposits, we need to deduct callvalue from the balance.
+     * The contract calculates the amount of shares(pufETH) to mint based on the total assets.
+     * When a user sends ETH, the msg.value is immediately added to address(this).balance, and address(this.balance) is included in the total assets.
+     * Because of that we must deduct the callvalue from the balance to avoid the user getting more shares than he should.
+     * We can't use msg.value in a view function, so we use assembly to get the callvalue.
      */
     function totalAssets() public view virtual override returns (uint256) {
-        // If we are dealing with native ETH deposit, we need to deduct callvalue from the balance
         uint256 callValue;
         assembly {
             callValue := callvalue()
         }
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + _WETH.balanceOf(address(this))
             + (address(this).balance - callValue); //@todo when you add oracle pufferOracle.getLockedEthAmount()
+    }
+
+    /**
+     * @notice Calculates the maximum amount of assets that can be withdrawn by the `owner`.
+     * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
+     * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
+     * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
+     */
+    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
+        uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
+        uint256 maxUserAssets = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
+        return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
+    }
+
+    /**
+     * @notice Calculates the maximum amount of shares that can be redeemed by the `owner`.
+     * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
+     * @param owner The address of the owner for which the maximum redeemable shares are calculated.
+     * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
+     */
+    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
+        uint256 remainingShares = previewWithdraw(getRemainingAssetsDailyWithdrawalLimit());
+        uint256 userShares = balanceOf(owner);
+        return remainingShares < userShares ? remainingShares : userShares;
     }
 
     /**
@@ -83,7 +107,7 @@ contract PufferVaultMainnet is PufferVault {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
-        _checkDailyWithdrawalLimits(assets); //@todo figure if it is better to override `maxWithdraw`
+        _updateDailyWithdrawals(assets);
 
         _wrapETH(assets);
 
@@ -106,7 +130,7 @@ contract PufferVaultMainnet is PufferVault {
 
         uint256 assets = previewRedeem(shares);
 
-        _checkDailyWithdrawalLimits(assets); //@todo figure if it is better to override `maxWithdraw`
+        _updateDailyWithdrawals(assets);
 
         _wrapETH(assets);
 
@@ -114,30 +138,6 @@ contract PufferVaultMainnet is PufferVault {
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return assets;
-    }
-
-    /**
-     * @param withdrawalAmount is the assets amount, not shares
-     */
-    function _checkDailyWithdrawalLimits(uint256 withdrawalAmount) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        // If daily withdrawal limit is 0, then there is no limit
-        if ($.dailyWithdrawalLimit == 0) {
-            return;
-        }
-
-        // Check if it's a new day to reset the withdrawal count
-        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-            $.withdrawnToday = 0;
-        }
-
-        if ($.withdrawnToday + withdrawalAmount > $.dailyWithdrawalLimit) {
-            revert ExceededDailyWithdrawalLimit($.dailyWithdrawalLimit, $.withdrawnToday, withdrawalAmount);
-        }
-
-        $.withdrawnToday += uint96(withdrawalAmount);
     }
 
     /**
@@ -160,7 +160,6 @@ contract PufferVaultMainnet is PufferVault {
      * @notice Transfers ETH to a specified address
      * @dev Restricted to PufferProtocol
      * We use it to transfer ETH to PufferModule
-     * copied from https://github.com/Vectorized/solady/blob/fb11b3e9ea6c1aafdbd0a1515ff440509d60bff9/src/utils/SafeTransferLib.sol#L64
      * @param to The address to transfer ETH to
      * @param ethAmount The amount of ETH to transfer
      */
@@ -172,12 +171,10 @@ contract PufferVaultMainnet is PufferVault {
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
-        /// @solidity memory-safe-assembly
-        assembly {
-            if iszero(call(gas(), to, ethAmount, codesize(), 0x00, codesize(), 0x00)) {
-                mstore(0x00, 0xb12d13eb) // `ETHTransferFailed()`.
-                revert(0x1c, 0x04)
-            }
+        (bool success, ) = to.call{value: ethAmount}("");
+
+        if (!success) {
+            revert ETHTransferFailed();
         }
     }
 
@@ -185,7 +182,7 @@ contract PufferVaultMainnet is PufferVault {
      * @notice Allows the `msg.sender` to burn his shares
      * @param shares The amount of shares to burn
      */
-    function burn(uint256 shares) public {
+    function burn(uint256 shares) public restricted {
         _burn(msg.sender, shares);
     }
 
@@ -194,10 +191,15 @@ contract PufferVaultMainnet is PufferVault {
      * @dev Restricted to DAO
      * @param newLimit The new daily limit to be set
      */
-    function setDailyLimit(uint96 newLimit) external restricted {
+    function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
-        emit DailyWithdrawalLimitSet($.dailyWithdrawalLimit, newLimit);
-        $.dailyWithdrawalLimit = newLimit;
+        emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
+        $.dailyAssetsWithdrawalLimit = newLimit;
+    }
+
+    function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint96) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.dailyAssetsWithdrawalLimit - $.assetsWithdrawnToday;
     }
 
     function _wrapETH(uint256 assets) internal {
@@ -206,6 +208,21 @@ contract PufferVaultMainnet is PufferVault {
         if (wethBalance < assets) {
             _WETH.deposit{ value: assets - wethBalance }();
         }
+    }
+
+    /**
+     * @param withdrawalAmount is the assets amount, not shares
+     */
+    function _updateDailyWithdrawals(uint256 withdrawalAmount) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        // Check if it's a new day to reset the withdrawal count
+        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
+            $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+            $.assetsWithdrawnToday = 0;
+        }
+
+        $.assetsWithdrawnToday += uint96(withdrawalAmount);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
