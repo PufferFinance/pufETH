@@ -7,6 +7,7 @@ import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.so
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
+import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
@@ -28,14 +29,21 @@ contract PufferVaultMainnet is PufferVault {
      */
     IWETH internal immutable _WETH;
 
+    /**
+     * @dev The PufferOracle contract
+     */
+    IPufferOracle public immutable PUFFER_ORACLE;
+
     constructor(
         IStETH stETH,
         IWETH weth,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
-        IEigenLayer eigenStrategyManager
+        IEigenLayer eigenStrategyManager,
+        IPufferOracle oracle
     ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
         _WETH = weth;
+        PUFFER_ORACLE = oracle;
         _disableInitializers();
     }
 
@@ -71,7 +79,7 @@ contract PufferVaultMainnet is PufferVault {
             callValue := callvalue()
         }
         return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + _WETH.balanceOf(address(this))
-            + (address(this).balance - callValue); //@todo when you add oracle pufferOracle.getLockedEthAmount()
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
     }
 
     /**
