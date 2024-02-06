@@ -59,8 +59,9 @@ contract UpgradePuffETH is BaseScript {
         //@todo this is for tests only
         AccessManager(accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultMainnet newImplementation =
-            new PufferVaultMainnet(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle));
+        PufferVaultMainnet newImplementation = new PufferVaultMainnet(
+            stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle)
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);

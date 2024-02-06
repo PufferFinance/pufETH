@@ -196,7 +196,12 @@ contract PufferTest is Test {
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
         PufferVaultMainnet newImplementation = new PufferVaultMainnet(
-            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, IPufferOracle(address(12345))
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            IPufferOracle(address(12345))
         );
 
         // Community multisig can do thing instantly
@@ -357,8 +362,14 @@ contract PufferTest is Test {
     }
 
     function test_upgrade_from_operations_multisig() public {
-        PufferVaultMainnet newImplementation =
-            new PufferVaultMainnet(_ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, IPufferOracle(address(1234)));
+        PufferVaultMainnet newImplementation = new PufferVaultMainnet(
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            IPufferOracle(address(1234))
+        );
 
         // Community multisig can do thing instantly, this one has a delay
         vm.startPrank(OPERATIONS_MULTISIG);

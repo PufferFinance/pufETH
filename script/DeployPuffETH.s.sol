@@ -21,6 +21,7 @@ import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
 import { WETH9 } from "test/mocks/WETH9.sol";
+import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS } from "./Roles.sol";
 
 /**
  * @title DeployPuffer
@@ -39,9 +40,6 @@ import { WETH9 } from "test/mocks/WETH9.sol";
  *         PK=${deployer_pk} forge script script/DeployPuffETH.s.sol:DeployPuffETH -vvvv --rpc-url=... --broadcast
  */
 contract DeployPuffETH is BaseScript {
-    uint64 constant ROLE_ID_UPGRADER = 1;
-    uint64 constant ROLE_ID_OPERATIONS = 22;
-
     /**
      * @dev Ethereum Mainnet addresses
      */
