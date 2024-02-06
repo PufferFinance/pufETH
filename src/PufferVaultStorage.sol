@@ -18,7 +18,7 @@ abstract contract PufferVaultStorage {
      *      +-----------------------------------------------------------+
      */
     struct VaultStorage {
-        // 2 Slots for Redemption logic
+        // 5 Slots for Redemption logic
         uint256 lidoLockedETH;
         uint256 eigenLayerPendingWithdrawalSharesAmount;
         bool isLidoWithdrawal;

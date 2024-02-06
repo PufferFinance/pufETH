@@ -48,6 +48,7 @@ contract PufferVaultMainnet is PufferVault {
         erc4626Storage._asset = _WETH;
 
         VaultStorage storage $ = _getPufferVaultStorage();
+        $.dailyAssetsWithdrawalLimit = 0;
         $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
     }
 
@@ -81,7 +82,7 @@ contract PufferVaultMainnet is PufferVault {
      */
     function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
         uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
-        uint256 maxUserAssets = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
+        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
         return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
     }
 
@@ -199,7 +200,13 @@ contract PufferVaultMainnet is PufferVault {
 
     function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint96) {
         VaultStorage storage $ = _getPufferVaultStorage();
-        return $.dailyAssetsWithdrawalLimit - $.assetsWithdrawnToday;
+        uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
+        uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
+
+        if (dailyAssetsWithdrawalLimit < assetsWithdrawnToday) {
+            return 0;
+        }
+        return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
     }
 
     function _wrapETH(uint256 assets) internal {
