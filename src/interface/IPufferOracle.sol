@@ -43,4 +43,9 @@ interface IPufferOracle {
      * @return lockedEthAmount The amount of ETH locked in Beacon chain
      */
     function getLockedEthAmount() external view returns (uint256 lockedEthAmount);
+
+    /**
+     * @notice Returns true if the number of active Puffer Validators is over the burst threshold
+     */
+    function isOverBurstThreshold() external view returns (bool);
 }
