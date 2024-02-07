@@ -186,7 +186,7 @@ contract DeployPuffETH is BaseScript {
         // Grant roles to operations & community
 
         // Operations Multisig has 7 day delay
-        uint256 delayInSeconds = 604800; // 7 days
+        uint256 delayInSeconds = 0; // 7 days //@todo this is for testing, real deployment has 7 days delay
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_UPGRADER, operationsMultisig, delayInSeconds
         );

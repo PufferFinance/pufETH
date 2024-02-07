@@ -8,7 +8,7 @@ uint64 constant ROLE_ID_UPGRADER = 1;
 uint64 constant ROLE_ID_OPERATIONS = 22;
 
 // Role assigned to the Puffer Protocol
-uint64 constant ROLE_ID_PUFFER_PROTOCOL = type(uint64).max;
+uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;
 uint64 constant ROLE_ID_DAO = 77;
 uint64 constant ROLE_ID_GUARDIANS = 88;
 uint64 constant ROLE_ID_PAUSER = 999;

@@ -26,6 +26,13 @@ interface IPufferOracle {
     event ValidatorTicketMintPriceUpdated(uint256 oldPrice, uint256 newPrice);
 
     /**
+     * @notice Increases the `lockedETH` amount on the Oracle by 32 ETH
+     * It is called when the Beacon chain receives a new deposit from PufferProtocol
+     * The PufferVault balance is decreased by the same amount
+     */
+    function provisionNode() external;
+
+    /**
      * @notice Retrieves the current mint price for minting one Validator Ticket
      * @return pricePerVT The current mint price
      */
