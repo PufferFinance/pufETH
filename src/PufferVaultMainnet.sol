@@ -180,6 +180,7 @@ contract PufferVaultMainnet is PufferVault {
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
+        // slither-disable-next-line arbitrary-send-eth
         (bool success,) = to.call{ value: ethAmount }("");
 
         if (!success) {
