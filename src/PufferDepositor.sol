@@ -6,13 +6,13 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IStETH } from "src/interface/Lido/IStETH.sol";
-import { IWstETH } from "src/interface/Lido/IWstETH.sol";
-import { PufferVault } from "src/PufferVault.sol";
-import { PufferDepositorStorage } from "src/PufferDepositorStorage.sol";
+import { IStETH } from "./interface/Lido/IStETH.sol";
+import { IWstETH } from "./interface/Lido/IWstETH.sol";
+import { PufferVault } from "./PufferVault.sol";
+import { PufferDepositorStorage } from "./PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ISushiRouter } from "src/interface/Other/ISushiRouter.sol";
-import { IPufferDepositor } from "src/interface/IPufferDepositor.sol";
+import { ISushiRouter } from "./interface/Other/ISushiRouter.sol";
+import { IPufferDepositor } from "./interface/IPufferDepositor.sol";
 
 /**
  * @title PufferDepositor

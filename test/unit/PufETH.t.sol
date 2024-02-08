@@ -2,14 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "erc4626-tests/ERC4626.test.sol";
-import { IStETH } from "src/interface/Lido/IStETH.sol";
-import { IPufferVault } from "src/interface/IPufferVault.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { IAccessManaged } from "openzeppelin/access/manager/IAccessManaged.sol";
-import { PufferDepositor } from "src/PufferDepositor.sol";
-import { PufferVault } from "src/PufferVault.sol";
+import { PufferDepositor } from "../../src/PufferDepositor.sol";
+import { PufferVault } from "../../src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
-import { PufferDeployment } from "src/structs/PufferDeployment.sol";
+import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
 
 contract PufETHTest is ERC4626Test {
