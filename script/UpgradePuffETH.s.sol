@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { PufferVault } from "src/PufferVault.sol";
-import { PufferVaultMainnet } from "src/PufferVaultMainnet.sol";
-import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
-import { IStETH } from "src/interface/Lido/IStETH.sol";
-import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { stETHMock } from "test/mocks/stETHMock.sol";
-import { LidoWithdrawalQueueMock } from "test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "test/mocks/stETHStrategyMock.sol";
-import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
+import { BaseScript } from ".//BaseScript.s.sol";
+import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
+import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
+import { IStETH } from "../src/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { stETHMock } from "../test/mocks/stETHMock.sol";
+import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
+import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
+import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IWETH } from "src/interface/Other/IWETH.sol";
-import { IPufferOracle } from "src/interface/IPufferOracle.sol";
-import { WETH9 } from "test/mocks/WETH9.sol";
+import { IWETH } from "../src/interface/Other/IWETH.sol";
+import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { WETH9 } from "../test/mocks/WETH9.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 
