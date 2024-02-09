@@ -158,7 +158,7 @@ contract PufferVault is
         VaultStorage storage $ = _getPufferVaultStorage();
         // When we initiate withdrawal from EigenLayer, the shares are deducted from the `lockedAmount`
         // In that case the locked amount goes to 0 and the pendingWithdrawalAmount increases
-        uint256 lockedAmount = _EIGEN_STETH_STRATEGY.userUnderlying(address(this));
+        uint256 lockedAmount = _EIGEN_STETH_STRATEGY.userUnderlyingView(address(this));
         uint256 pendingWithdrawalAmount =
             _EIGEN_STETH_STRATEGY.sharesToUnderlyingView($.eigenLayerPendingWithdrawalSharesAmount);
         return lockedAmount + pendingWithdrawalAmount;
