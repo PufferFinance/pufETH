@@ -9,5 +9,7 @@ contract stETHStrategyMock is IStrategy {
      */
     function userUnderlying(address user) external view returns (uint256) { }
 
+    function userUnderlyingView(address user) external view returns (uint256) { }
+
     function sharesToUnderlyingView(uint256 amountShares) external view returns (uint256) { }
 }

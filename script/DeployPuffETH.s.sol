@@ -95,7 +95,7 @@ contract DeployPuffETH is BaseScript {
             communityMultisig: communityMultisig,
             operationsMultisig: operationsMultisig,
             pauser: pauserMultisig,
-            initialDelay: 7 days
+            initialDelay: 7 days + 1
         });
 
         {
