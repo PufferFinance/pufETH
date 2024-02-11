@@ -55,9 +55,8 @@ contract PufferVaultMainnet is PufferVault {
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
 
-        VaultStorage storage $ = _getPufferVaultStorage();
-        $.dailyAssetsWithdrawalLimit = 0;
-        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+        _setDailyWithdrawalLimit(100 ether);
+        _updateDailyWithdrawals(0);
     }
 
     /**
@@ -202,9 +201,7 @@ contract PufferVaultMainnet is PufferVault {
      * @param newLimit The new daily limit to be set
      */
     function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
-        $.dailyAssetsWithdrawalLimit = newLimit;
+        _setDailyWithdrawalLimit(newLimit);
     }
 
     function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint96) {
@@ -239,6 +236,12 @@ contract PufferVaultMainnet is PufferVault {
         }
 
         $.assetsWithdrawnToday += uint96(withdrawalAmount);
+    }
+
+    function _setDailyWithdrawalLimit(uint96 newLimit) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
+        $.dailyAssetsWithdrawalLimit = newLimit;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

@@ -32,7 +32,7 @@ contract PufferMainnetTest is Test {
     address OPERATIONS_MULTISIG;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 19185685);
 
         _setupContracts();
     }

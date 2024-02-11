@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { IPufferOracle } from "../../src/interface/IPufferOracle.sol";
+
 /**
  * @title MockPufferOracle
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract MockPufferOracle {
-    error OutsideUpdateWindow();
-
-    event BackingUpdated(uint256 indexed blockNumber, uint256 lockedETH);
-
+contract MockPufferOracle is IPufferOracle {
     /**
      * @dev Number of blocks
      */
@@ -49,4 +47,12 @@ contract MockPufferOracle {
 
         emit BackingUpdated(newLockedEthValue, blockNumber);
     }
+
+    function provisionNode() external { }
+
+    function getValidatorTicketPrice() external view returns (uint256 pricePerVT) { }
+
+    function getLockedEthAmount() external view returns (uint256 lockedEthAmount) { }
+
+    function isOverBurstThreshold() external view returns (bool) { }
 }
