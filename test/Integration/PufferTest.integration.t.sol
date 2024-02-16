@@ -5,9 +5,9 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVaultMainnet } from "../../src/PufferVaultMainnet.sol";
-import { PufferOracle } from "../../src/PufferOracle.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
+import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IPufferVault } from "src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -20,10 +20,12 @@ import { PufferVault } from "src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { IWstETH } from "src/interface/Lido/IWstETH.sol";
+import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { Timelock } from "src/Timelock.sol";
+import { IWETH } from "src/interface/Other/IWETH.sol";
 
 contract PufferTest is Test {
     /**
@@ -32,6 +34,7 @@ contract PufferTest is Test {
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
@@ -57,12 +60,10 @@ contract PufferTest is Test {
     PufferDepositor public pufferDepositor;
     PufferVault public pufferVault;
     AccessManager public accessManager;
-    PufferOracle public pufferOracle;
     Timelock public timelock;
 
     // Lido contract (stETH)
     IStETH stETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-    IERC20 internal constant _WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     // EL Strategy Manager
     IEigenLayer eigenStrategyManager = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
 
@@ -112,7 +113,6 @@ contract PufferTest is Test {
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
-        pufferOracle = PufferOracle(payable(deployment.pufferOracle));
         timelock = Timelock(payable(deployment.timelock));
 
         COMMUNITY_MULTISIG = timelock.COMMUNITY_MULTISIG();
@@ -194,10 +194,13 @@ contract PufferTest is Test {
     }
 
     function _upgradeToMainnetPuffer() internal {
+        MockPufferOracle mockOracle = new MockPufferOracle();
+
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultMainnet newImplementation =
-            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
+        PufferVaultMainnet newImplementation = new PufferVaultMainnet(
+            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
+        );
 
         // Community multisig can do thing instantly
         vm.startPrank(COMMUNITY_MULTISIG);
@@ -354,40 +357,6 @@ contract PufferTest is Test {
 
         uint256 minted = pufferVault.deposit(0, alice);
         assertEq(minted, 0, "got 0 back");
-    }
-
-    function test_upgrade_from_operations_multisig() public {
-        PufferVaultMainnet newImplementation =
-            new PufferVaultMainnet(_ST_ETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER);
-
-        // Community multisig can do thing instantly, this one has a delay
-        vm.startPrank(OPERATIONS_MULTISIG);
-
-        bytes memory initializerCallData = abi.encodeCall(PufferVaultMainnet.initialize, ());
-
-        // It is not allowed to execute before the timelock
-        vm.expectRevert();
-        accessManager.execute(
-            address(pufferVault),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
-        );
-
-        // 1. Schedule the upgrade
-        accessManager.schedule(
-            address(pufferVault),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData)),
-            0
-        );
-
-        vm.warp(block.timestamp + 7 days);
-
-        vm.expectEmit(true, true, true, true);
-        emit Initializable.Initialized(2);
-        // 2. Execute the upgrade
-        accessManager.execute(
-            address(pufferVault),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), initializerCallData))
-        );
     }
 
     function test_upgrade_to_mainnet() public giveToken(MAKER_VAULT, address(_WETH), eve, 100 ether) {

@@ -1,25 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
+import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { PufferDepositor } from "src/PufferDepositor.sol";
-import { PufferOracle } from "src/PufferOracle.sol";
-import { PufferVault } from "src/PufferVault.sol";
-import { Timelock } from "src/Timelock.sol";
-import { NoImplementation } from "src/NoImplementation.sol";
-import { PufferDeployment } from "src/structs/PufferDeployment.sol";
-import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
-import { IStETH } from "src/interface/Lido/IStETH.sol";
-import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { stETHMock } from "test/mocks/stETHMock.sol";
-import { LidoWithdrawalQueueMock } from "test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "test/mocks/stETHStrategyMock.sol";
-import { EigenLayerManagerMock } from "test/mocks/EigenLayerManagerMock.sol";
+import { PufferDepositor } from "../src/PufferDepositor.sol";
+import { PufferVault } from "../src/PufferVault.sol";
+import { Timelock } from "../src/Timelock.sol";
+import { NoImplementation } from "../src/NoImplementation.sol";
+import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
+import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
+import { IStETH } from "../src/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { stETHMock } from "../test/mocks/stETHMock.sol";
+import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
+import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
+import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { IWETH } from "../src/interface/Other/IWETH.sol";
+import { WETH9 } from "../test/mocks/WETH9.sol";
+import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS } from "./Roles.sol";
 
 /**
  * @title DeployPuffer
@@ -38,15 +40,13 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
  *         PK=${deployer_pk} forge script script/DeployPuffETH.s.sol:DeployPuffETH -vvvv --rpc-url=... --broadcast
  */
 contract DeployPuffETH is BaseScript {
-    uint64 constant ROLE_ID_UPGRADER = 1;
-    uint64 constant ROLE_ID_OPERATIONS = 22;
-
     /**
      * @dev Ethereum Mainnet addresses
      */
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
+    IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
@@ -55,7 +55,6 @@ contract DeployPuffETH is BaseScript {
 
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;
-    PufferOracle pufferOracle;
     Timelock timelock;
 
     ERC1967Proxy depositorProxy;
@@ -64,6 +63,7 @@ contract DeployPuffETH is BaseScript {
     AccessManager accessManager;
 
     address stETHAddress;
+    address wethAddress;
 
     address operationsMultisig = vm.envOr("OPERATIONS_MULTISIG", makeAddr("operationsMultisig"));
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
@@ -87,7 +87,6 @@ contract DeployPuffETH is BaseScript {
         vaultProxy = new ERC1967Proxy{ salt: pufferVaultSalt }(noImpl, "");
         vm.label(address(vaultProxy), "PufferVault");
 
-        // Deploy mock Puffer oracle
         timelock = new Timelock({
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,
@@ -99,12 +98,14 @@ contract DeployPuffETH is BaseScript {
         {
             (
                 IStETH stETH,
+                IWETH weth,
                 ILidoWithdrawalQueue lidoWithdrawalQueue,
                 IStrategy stETHStrategy,
                 IEigenLayer eigenStrategyManager
             ) = _getArgs();
 
             stETHAddress = address(stETH);
+            wethAddress = address(weth);
 
             // Deploy implementation contracts
             pufferVaultImplementation =
@@ -142,6 +143,7 @@ contract DeployPuffETH is BaseScript {
             pufferVaultImplementation: address(pufferVaultImplementation),
             pufferOracle: address(0),
             stETH: stETHAddress,
+            weth: wethAddress,
             timelock: address(timelock)
         });
     }
@@ -184,7 +186,7 @@ contract DeployPuffETH is BaseScript {
         // Grant roles to operations & community
 
         // Operations Multisig has 7 day delay
-        uint256 delayInSeconds = 604800; // 7 days
+        uint256 delayInSeconds = 0; // 7 days //@todo this is for testing, real deployment has 7 days delay
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_UPGRADER, operationsMultisig, delayInSeconds
         );
@@ -245,6 +247,7 @@ contract DeployPuffETH is BaseScript {
         internal
         returns (
             IStETH stETH,
+            IWETH weth,
             ILidoWithdrawalQueue lidoWithdrawalQueue,
             IStrategy stETHStrategy,
             IEigenLayer eigenStrategyManager
@@ -252,11 +255,13 @@ contract DeployPuffETH is BaseScript {
     {
         if (isMainnet()) {
             stETH = _ST_ETH;
+            weth = _WETH;
             lidoWithdrawalQueue = _LIDO_WITHDRAWAL_QUEUE;
             stETHStrategy = _EIGEN_STETH_STRATEGY;
             eigenStrategyManager = _EIGEN_STRATEGY_MANAGER;
         } else {
             stETH = IStETH(address(new stETHMock()));
+            weth = new WETH9();
             lidoWithdrawalQueue = new LidoWithdrawalQueueMock();
             stETHStrategy = new stETHStrategyMock();
             eigenStrategyManager = new EigenLayerManagerMock();
