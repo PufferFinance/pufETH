@@ -80,8 +80,8 @@ contract PufferVaultMainnet is PufferVault {
         assembly {
             callValue := callvalue()
         }
-        return _ST_ETH.balanceOf(address(this)) + getELBackingEthAmount() + _WETH.balanceOf(address(this))
-            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
+        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + getELBackingEthAmount()
+            + _WETH.balanceOf(address(this)) + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
     }
 
     /**
