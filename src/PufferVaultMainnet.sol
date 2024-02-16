@@ -8,7 +8,7 @@ import { IEigenLayer } from "./interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title PufferVault
@@ -16,6 +16,8 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultMainnet is PufferVault {
+    using SafeERC20 for address;
+
     error ETHTransferFailed();
 
     /**
@@ -74,6 +76,7 @@ contract PufferVaultMainnet is PufferVault {
      */
     function totalAssets() public view virtual override returns (uint256) {
         uint256 callValue;
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             callValue := callvalue()
         }
@@ -107,9 +110,16 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Withdrawals are allowed an the asset out is WETH
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
      */
-    function withdraw(uint256 assets, address receiver, address owner) public virtual override returns (uint256) {
+    function withdraw(uint256 assets, address receiver, address owner)
+        public
+        virtual
+        override
+        restricted
+        returns (uint256)
+    {
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
@@ -128,9 +138,16 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Withdrawals are allowed an the asset out is WETH
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
      */
-    function redeem(uint256 shares, address receiver, address owner) public virtual override returns (uint256) {
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        virtual
+        override
+        restricted
+        returns (uint256)
+    {
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
@@ -150,8 +167,9 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Deposits native ETH
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address receiver) public payable virtual returns (uint256) {
+    function depositETH(address receiver) public payable virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (msg.value > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
@@ -165,10 +183,31 @@ contract PufferVaultMainnet is PufferVault {
     }
 
     /**
+     * @notice Deposits stETH
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
+
+        uint256 shares = previewDeposit(assets);
+
+        // slither-disable-next-line reentrancy-no-eth
+        SafeERC20.safeTransferFrom(_ST_ETH, _msgSender(), address(this), assets);
+        _mint(receiver, shares);
+
+        emit Deposit(_msgSender(), receiver, assets, shares);
+
+        return shares;
+    }
+
+    /**
      * @notice Transfers ETH to a specified address
-     * @dev Restricted to PufferProtocol
+     * @dev Restricted to PufferProtocol smart contract
      * We use it to transfer ETH to PufferModule
-     * @param to The address to transfer ETH to
+     * @param to The address of the module to transfer ETH to
      * @param ethAmount The amount of ETH to transfer
      */
     function transferETH(address to, uint256 ethAmount) external restricted {
@@ -189,6 +228,8 @@ contract PufferVaultMainnet is PufferVault {
 
     /**
      * @notice Allows the `msg.sender` to burn his shares
+     * @dev Restricted to PufferProtocol smart contract
+     * We use it to burn the bond if the node operator gets slashed
      * @param shares The amount of shares to burn
      */
     function burn(uint256 shares) public restricted {
@@ -204,6 +245,10 @@ contract PufferVaultMainnet is PufferVault {
         _setDailyWithdrawalLimit(newLimit);
     }
 
+    /**
+     * @notice Returns the remaining assets that can be withdrawn today
+     * @return The remaining assets that can be withdrawn today
+     */
     function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint96) {
         VaultStorage storage $ = _getPufferVaultStorage();
         uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
@@ -238,6 +283,9 @@ contract PufferVaultMainnet is PufferVault {
         $.assetsWithdrawnToday += uint96(withdrawalAmount);
     }
 
+    /**
+     * @param newLimit is the assets amount, not shares
+     */
     function _setDailyWithdrawalLimit(uint96 newLimit) internal {
         VaultStorage storage $ = _getPufferVaultStorage();
         emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);

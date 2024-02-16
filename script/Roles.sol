@@ -12,3 +12,6 @@ uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;
 uint64 constant ROLE_ID_DAO = 77;
 uint64 constant ROLE_ID_GUARDIANS = 88;
 uint64 constant ROLE_ID_PAUSER = 999;
+
+// Public role (defined in AccessManager.sol)
+uint64 constant PUBLIC_ROLE = type(uint64).max;

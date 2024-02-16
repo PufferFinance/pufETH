@@ -5,27 +5,28 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVaultMainnet } from "../../src/PufferVaultMainnet.sol";
+import { PufferDepositorMainnet } from "../../src/PufferDepositorMainnet.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IPufferDepositor } from "../../src/interface/IPufferDepositor.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
-import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
-import { IPufferVault } from "src/interface/IPufferVault.sol";
+import { IEigenLayer } from "../../src/interface/EigenLayer/IEigenLayer.sol";
+import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
-import { PufferDeployment } from "src/structs/PufferDeployment.sol";
+import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
-import { PufferVault } from "src/PufferVault.sol";
+import { PufferVault } from "../../src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
-import { IStETH } from "src/interface/Lido/IStETH.sol";
-import { IWstETH } from "src/interface/Lido/IWstETH.sol";
-import { IPufferOracle } from "src/interface/IPufferOracle.sol";
-import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
-import { Timelock } from "src/Timelock.sol";
-import { IWETH } from "src/interface/Other/IWETH.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { IWstETH } from "../../src/interface/Lido/IWstETH.sol";
+import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IEigenLayer } from "../../src/interface/EigenLayer/IEigenLayer.sol";
+import { IStrategy } from "../../src/interface/EigenLayer/IStrategy.sol";
+import { Timelock } from "../../src/Timelock.sol";
+import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
 
 contract PufferTest is Test {
     /**
@@ -205,11 +206,29 @@ contract PufferTest is Test {
         // Community multisig can do thing instantly
         vm.startPrank(COMMUNITY_MULTISIG);
 
+        //Upgrade PufferVault
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
         );
+
+        PufferDepositorMainnet newDepositorImplementation =
+            new PufferDepositorMainnet(PufferVaultMainnet(payable(pufferVault)), _ST_ETH);
+
+        // Upgrade PufferDepositor
+        emit Initializable.Initialized(2);
+        timelock.executeTransaction(
+            address(pufferDepositor),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
+            1
+        );
+
+        // Setup access
+        bytes memory encodedMulticall = new GenerateAccessManagerCallData().run(address(pufferVault));
+        // Timelock is the owner of the AccessManager
+        timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
+
         vm.stopPrank();
     }
 
