@@ -6,7 +6,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO } from "./Roles.sol";
+import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -18,17 +18,16 @@ import { PUBLIC_ROLE, ROLE_ID_DAO } from "./Roles.sol";
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCallData is Script {
-    function run(address pufferVaultProxy) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](2);
+    function run(address pufferVaultProxy, address pufferProtocolProxy) public pure returns (bytes memory) {
+        bytes[] memory calldatas = new bytes[](3);
 
         // Public selectors
-        bytes4[] memory publicSelectors = new bytes4[](6);
+        bytes4[] memory publicSelectors = new bytes4[](5);
         publicSelectors[0] = PufferVaultMainnet.withdraw.selector;
         publicSelectors[1] = PufferVaultMainnet.redeem.selector;
-        publicSelectors[2] = PufferVaultMainnet.redeem.selector;
-        publicSelectors[3] = PufferVaultMainnet.depositETH.selector;
-        publicSelectors[4] = PufferVaultMainnet.depositStETH.selector;
-        publicSelectors[5] = PufferVaultMainnet.burn.selector;
+        publicSelectors[2] = PufferVaultMainnet.depositETH.selector;
+        publicSelectors[3] = PufferVaultMainnet.depositStETH.selector;
+        publicSelectors[4] = PufferVaultMainnet.burn.selector;
         // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
 
         bytes memory publicSelectorsCallData = abi.encodeWithSelector(
@@ -43,11 +42,22 @@ contract GenerateAccessManagerCallData is Script {
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, daoSelectors, ROLE_ID_DAO
         );
 
-        //@todo We are missing `transferETH`, `burn` authorization for PufferProtocol
+        // Puffer Protocol only
+        bytes4[] memory protocolSelectors = new bytes4[](2);
+        protocolSelectors[0] = PufferVaultMainnet.burn.selector;
+        protocolSelectors[1] = PufferVaultMainnet.transferETH.selector;
+
+        bytes memory protocolSelectorsCalldata = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferProtocolProxy,
+            protocolSelectors,
+            ROLE_ID_PUFFER_PROTOCOL
+        );
 
         // Combine the two calldatas
         calldatas[0] = publicSelectorsCallData;
         calldatas[1] = daoSelectorsCallData;
+        calldatas[2] = protocolSelectorsCalldata;
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
@@ -55,8 +65,5 @@ contract GenerateAccessManagerCallData is Script {
         // console.logBytes(encodedMulticall);
 
         return encodedMulticall;
-
-        // the returned calldata is supposed to be called like this
-        // manager.multicall(calldatas);
     }
 }
