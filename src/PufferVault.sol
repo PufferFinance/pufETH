@@ -74,6 +74,7 @@ contract PufferVault is
         __ERC20_init("pufETH", "pufETH");
     }
 
+    // solhint-disable-next-line no-complex-fallback
     receive() external payable virtual {
         // If we don't use this pattern, somebody can create a Lido withdrawal, claim it to this contract
         // Making `$.lidoLockedETH -= msg.value` revert
