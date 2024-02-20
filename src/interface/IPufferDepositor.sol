@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { Permit } from "../structs/Permit.sol";
 
 /**
  * @title PufferDepositor
@@ -30,17 +31,6 @@ interface IPufferDepositor {
     event TokenDisallowed(IERC20 token);
 
     /**
-     * @dev Struct representing a permit for a specific action.
-     */
-    struct Permit {
-        uint256 deadline;
-        uint256 amount;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
-    /**
      * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
      * @param tokenIn The address of the token being swapped
      * @param amountIn The amount of `tokenIn` to swap
@@ -59,11 +49,10 @@ interface IPufferDepositor {
      * @param callData The encoded calldata for the swap, it is fetched from the 1Inch API `https://api.1inch.dev/swap/v5.2/1/swap`
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function swapAndDepositWithPermit1Inch(
-        address tokenIn,
-        IPufferDepositor.Permit calldata permitData,
-        bytes calldata callData
-    ) external payable returns (uint256 pufETHAmount);
+    function swapAndDepositWithPermit1Inch(address tokenIn, Permit calldata permitData, bytes calldata callData)
+        external
+        payable
+        returns (uint256 pufETHAmount);
 
     /**
      * @notice Swaps `amountIn` of `tokenIn` for stETH and deposits it into the Puffer Vault
@@ -89,7 +78,7 @@ interface IPufferDepositor {
     function swapAndDepositWithPermit(
         address tokenIn,
         uint256 amountOutMin,
-        IPufferDepositor.Permit calldata permitData,
+        Permit calldata permitData,
         bytes calldata routeCode
     ) external payable returns (uint256 pufETHAmount);
 
@@ -98,12 +87,12 @@ interface IPufferDepositor {
      * @param permitData The permit data containing the approval information
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositWstETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositWstETH(Permit calldata permitData) external returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits stETH into the Puffer Vault using Permit
      * @param permitData The permit data containing the approval information
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositStETH(IPufferDepositor.Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositStETH(Permit calldata permitData) external returns (uint256 pufETHAmount);
 }

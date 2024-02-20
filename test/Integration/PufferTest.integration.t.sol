@@ -27,6 +27,7 @@ import { IStrategy } from "../../src/interface/EigenLayer/IStrategy.sol";
 import { Timelock } from "../../src/Timelock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
+import { Permit } from "../../src/structs/Permit.sol";
 
 contract PufferTest is Test {
     /**
@@ -341,7 +342,7 @@ contract PufferTest is Test {
         bytes memory callData =
             hex"bc80f1a80000000000000000000000001bA145F1BE82d7285FFfAee5f79dc7744ffD0a9F0000000000000000000000000000000000000000000000000000000005f5e100000000000000000000000000000000000000000000000000008e080218847ef7000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000010000000000000000000000006c83b0feef04139eb5520b1ce0e78069c6e7e2c58b1ccac8";
 
-        IPufferDepositor.Permit memory permit = _signPermit(
+        Permit memory permit = _signPermit(
             _testTemps(
                 "bob",
                 address(pufferDepositor),
@@ -556,7 +557,7 @@ contract PufferTest is Test {
     {
         assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
 
-        IPufferDepositor.Permit memory permit = _signPermit(
+        Permit memory permit = _signPermit(
             _testTemps(
                 "alice",
                 address(pufferDepositor),
@@ -579,7 +580,7 @@ contract PufferTest is Test {
     {
         assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
 
-        IPufferDepositor.Permit memory permit = _signPermit(
+        Permit memory permit = _signPermit(
             _testTemps(
                 "alice",
                 address(pufferDepositor),
@@ -604,7 +605,7 @@ contract PufferTest is Test {
 
         assertEq(0, pufferVault.balanceOf(alice), "alice has 0 pufETH");
 
-        IPufferDepositor.Permit memory permit =
+        Permit memory permit =
             _signPermit(_testTemps("alice", address(pufferDepositor), 3000 ether, block.timestamp, hex""));
 
         // Permit call will revert because of the bad domain separator for wstETH
@@ -631,7 +632,7 @@ contract PufferTest is Test {
 
         assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
 
-        IPufferDepositor.Permit memory permit = _signPermit(
+        Permit memory permit = _signPermit(
             _testTemps(
                 "bob",
                 address(pufferDepositor),
@@ -666,7 +667,7 @@ contract PufferTest is Test {
 
         assertEq(pufferVault.balanceOf(bob), 0, "bob has 0 pufETH");
 
-        IPufferDepositor.Permit memory permit = _signPermit(
+        Permit memory permit = _signPermit(
             _testTemps(
                 "bob",
                 address(pufferDepositor),
@@ -879,13 +880,13 @@ contract PufferTest is Test {
         assertApproxEqAbs(pufferVault.totalAssets(), 1000 ether, 1, "should have 1k ether after");
     }
 
-    function _signPermit(_TestTemps memory t) internal pure returns (IPufferDepositor.Permit memory p) {
+    function _signPermit(_TestTemps memory t) internal pure returns (Permit memory p) {
         bytes32 innerHash = keccak256(abi.encode(_PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
         bytes32 domainSeparator = t.domainSeparator;
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
 
-        return IPufferDepositor.Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
+        return Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline, bytes32 domainSeparator)
