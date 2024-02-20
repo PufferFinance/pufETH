@@ -12,6 +12,7 @@ import { PufferVaultMainnet } from "./PufferVaultMainnet.sol";
 import { PufferDepositorStorage } from "./PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IPufferDepositorMainnet } from "./interface/IPufferDepositorMainnet.sol";
+import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title PufferDepositor
@@ -43,11 +44,7 @@ contract PufferDepositorMainnet is
     /**
      * @inheritdoc IPufferDepositorMainnet
      */
-    function depositWstETH(IPufferDepositorMainnet.Permit calldata permitData)
-        external
-        restricted
-        returns (uint256 pufETHAmount)
-    {
+    function depositWstETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(_WST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -67,11 +64,7 @@ contract PufferDepositorMainnet is
     /**
      * @inheritdoc IPufferDepositorMainnet
      */
-    function depositStETH(IPufferDepositorMainnet.Permit calldata permitData)
-        external
-        restricted
-        returns (uint256 pufETHAmount)
-    {
+    function depositStETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(_ST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),

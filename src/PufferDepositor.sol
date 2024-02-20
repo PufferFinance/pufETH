@@ -13,6 +13,7 @@ import { PufferDepositorStorage } from "./PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISushiRouter } from "./interface/Other/ISushiRouter.sol";
 import { IPufferDepositor } from "./interface/IPufferDepositor.sol";
+import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title PufferDepositor
@@ -81,11 +82,13 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @inheritdoc IPufferDepositor
      */
-    function swapAndDepositWithPermit1Inch(
-        address tokenIn,
-        IPufferDepositor.Permit calldata permitData,
-        bytes calldata callData
-    ) public payable virtual restricted returns (uint256 pufETHAmount) {
+    function swapAndDepositWithPermit1Inch(address tokenIn, Permit calldata permitData, bytes calldata callData)
+        public
+        payable
+        virtual
+        restricted
+        returns (uint256 pufETHAmount)
+    {
         try ERC20Permit(address(tokenIn)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -136,7 +139,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     function swapAndDepositWithPermit(
         address tokenIn,
         uint256 amountOutMin,
-        IPufferDepositor.Permit calldata permitData,
+        Permit calldata permitData,
         bytes calldata routeCode
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(tokenIn)).permit({
@@ -155,11 +158,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @inheritdoc IPufferDepositor
      */
-    function depositWstETH(IPufferDepositor.Permit calldata permitData)
-        external
-        restricted
-        returns (uint256 pufETHAmount)
-    {
+    function depositWstETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(_WST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -179,11 +178,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @inheritdoc IPufferDepositor
      */
-    function depositStETH(IPufferDepositor.Permit calldata permitData)
-        external
-        restricted
-        returns (uint256 pufETHAmount)
-    {
+    function depositStETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
         try ERC20Permit(address(_ST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),
