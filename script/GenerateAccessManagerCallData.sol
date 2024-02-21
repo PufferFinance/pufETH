@@ -6,6 +6,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
+import { PufferDepositorMainnet } from "../src/PufferDepositorMainnet.sol";
 import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "./Roles.sol";
 
 /**
@@ -18,10 +19,12 @@ import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "./Roles.sol";
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCallData is Script {
-    function run(address pufferVaultProxy, address pufferProtocolProxy) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](3);
-
-        // Public selectors
+    function run(address pufferVaultProxy, address pufferDepositorProxy, address pufferProtocolProxy)
+        public
+        pure
+        returns (bytes memory)
+    {
+        // Public selectors for PufferVault
         bytes4[] memory publicSelectors = new bytes4[](5);
         publicSelectors[0] = PufferVaultMainnet.withdraw.selector;
         publicSelectors[1] = PufferVaultMainnet.redeem.selector;
@@ -33,6 +36,17 @@ contract GenerateAccessManagerCallData is Script {
         bytes memory publicSelectorsCallData = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, publicSelectors, PUBLIC_ROLE
         );
+
+        // PufferDepositor public selectors
+        bytes4[] memory publicSelectorsDepositor = new bytes4[](2);
+        publicSelectorsDepositor[0] = PufferDepositorMainnet.depositStETH.selector;
+        publicSelectorsDepositor[1] = PufferDepositorMainnet.depositWstETH.selector;
+
+        bytes memory publicSelectorsCallDataDepositor = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
+        );
+
+        //@todo cleanup of old public selectors on the depositor smart contract
 
         // DAO selectors
         bytes4[] memory daoSelectors = new bytes4[](1);
@@ -54,10 +68,13 @@ contract GenerateAccessManagerCallData is Script {
             ROLE_ID_PUFFER_PROTOCOL
         );
 
+        bytes[] memory calldatas = new bytes[](4);
+
         // Combine the two calldatas
         calldatas[0] = publicSelectorsCallData;
         calldatas[1] = daoSelectorsCallData;
         calldatas[2] = protocolSelectorsCalldata;
+        calldatas[3] = publicSelectorsCallDataDepositor;
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 

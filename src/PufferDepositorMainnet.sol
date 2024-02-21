@@ -44,7 +44,11 @@ contract PufferDepositorMainnet is
     /**
      * @inheritdoc IPufferDepositorMainnet
      */
-    function depositWstETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
+    function depositWstETH(Permit calldata permitData, address recipient)
+        external
+        restricted
+        returns (uint256 pufETHAmount)
+    {
         try ERC20Permit(address(_WST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -58,13 +62,17 @@ contract PufferDepositorMainnet is
         SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
         uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
 
-        return PUFFER_VAULT.depositStETH(stETHAmount, msg.sender);
+        return PUFFER_VAULT.depositStETH(stETHAmount, recipient);
     }
 
     /**
      * @inheritdoc IPufferDepositorMainnet
      */
-    function depositStETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
+    function depositStETH(Permit calldata permitData, address recipient)
+        external
+        restricted
+        returns (uint256 pufETHAmount)
+    {
         try ERC20Permit(address(_ST_ETH)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -77,7 +85,7 @@ contract PufferDepositorMainnet is
 
         SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);
 
-        return PUFFER_VAULT.depositStETH(permitData.amount, msg.sender);
+        return PUFFER_VAULT.depositStETH(permitData.amount, recipient);
     }
 
     /**
