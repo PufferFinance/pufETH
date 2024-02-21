@@ -12,14 +12,16 @@ interface IPufferDepositorMainnet {
     /**
      * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
      * @param permitData The permit data containing the approval information
+     * @param recipient The recipient of pufETH tokens
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositWstETH(Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositWstETH(Permit calldata permitData, address recipient) external returns (uint256 pufETHAmount);
 
     /**
      * @notice Deposits stETH into the Puffer Vault using Permit
      * @param permitData The permit data containing the approval information
+     * @param recipient The recipient of pufETH tokens
      * @return pufETHAmount The amount of pufETH received from the deposit
      */
-    function depositStETH(Permit calldata permitData) external returns (uint256 pufETHAmount);
+    function depositStETH(Permit calldata permitData, address recipient) external returns (uint256 pufETHAmount);
 }

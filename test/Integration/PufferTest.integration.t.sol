@@ -227,7 +227,8 @@ contract PufferTest is Test {
 
         // Setup access
         address mockProtocol = makeAddr("mockProtocol");
-        bytes memory encodedMulticall = new GenerateAccessManagerCallData().run(address(pufferVault), mockProtocol);
+        bytes memory encodedMulticall =
+            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor), mockProtocol);
         // Timelock is the owner of the AccessManager
         timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
 
