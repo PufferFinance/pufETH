@@ -21,7 +21,9 @@ interface IPufferOracleV2 is IPufferOracle {
      * @param blockNumber is the block number of the update
      * @param lockedETH is the locked ETH amount in Beacon chain
      */
-    event ReservesUpdated(uint256 blockNumber, uint256 lockedETH, uint256 numberOfActivePufferValidators, uint256 totalNumberOfValidators);
+    event ReservesUpdated(
+        uint256 blockNumber, uint256 lockedETH, uint256 numberOfActivePufferValidators, uint256 totalNumberOfValidators
+    );
 
     /**
      * @notice Returns the total number of active validators on Ethereum
