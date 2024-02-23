@@ -11,4 +11,7 @@ struct PufferDeployment {
     address stETH;
     address weth;
     address timelock;
+    address lidoWithdrawalQueueMock;
+    address stETHStrategyMock;
+    address eigenStrategyManagerMock;
 }

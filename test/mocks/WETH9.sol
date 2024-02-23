@@ -19,6 +19,16 @@ contract WETH9 is IWETH {
         deposit();
     }
 
+    function mint(address to, uint256 value) external {
+        balanceOf[to] += value;
+        emit Transfer(address(0), to, value);
+    }
+
+    function burn(address from, uint256 value) external {
+        balanceOf[from] -= value;
+        emit Transfer(from, address(0), value);
+    }
+
     function deposit() public payable {
         balanceOf[msg.sender] += msg.value;
         emit Deposit(msg.sender, msg.value);
@@ -46,7 +56,7 @@ contract WETH9 is IWETH {
     }
 
     function transferFrom(address src, address dst, uint256 wad) public returns (bool) {
-        require(balanceOf[src] >= wad);
+        require(balanceOf[src] >= wad, "?????");
 
         if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= wad);

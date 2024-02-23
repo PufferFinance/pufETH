@@ -69,6 +69,12 @@ contract DeployPuffETH is BaseScript {
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
     address communityMultisig = vm.envOr("COMMUNITY_MULTISIG", makeAddr("communityMultisig"));
 
+    IStETH stETH;
+    IWETH weth;
+    ILidoWithdrawalQueue lidoWithdrawalQueue;
+    IStrategy stETHStrategy;
+    IEigenLayer eigenStrategyManager;
+
     function run() public broadcast returns (PufferDeployment memory) {
         string memory obj = "";
 
@@ -96,13 +102,7 @@ contract DeployPuffETH is BaseScript {
         });
 
         {
-            (
-                IStETH stETH,
-                IWETH weth,
-                ILidoWithdrawalQueue lidoWithdrawalQueue,
-                IStrategy stETHStrategy,
-                IEigenLayer eigenStrategyManager
-            ) = _getArgs();
+            _getArgs();
 
             stETHAddress = address(stETH);
             wethAddress = address(weth);
@@ -144,7 +144,10 @@ contract DeployPuffETH is BaseScript {
             pufferOracle: address(0),
             stETH: stETHAddress,
             weth: wethAddress,
-            timelock: address(timelock)
+            timelock: address(timelock),
+            lidoWithdrawalQueueMock: address(lidoWithdrawalQueue),
+            stETHStrategyMock: address(stETHStrategy),
+            eigenStrategyManagerMock: address(eigenStrategyManager)
         });
     }
 
@@ -243,16 +246,7 @@ contract DeployPuffETH is BaseScript {
         return calldatas;
     }
 
-    function _getArgs()
-        internal
-        returns (
-            IStETH stETH,
-            IWETH weth,
-            ILidoWithdrawalQueue lidoWithdrawalQueue,
-            IStrategy stETHStrategy,
-            IEigenLayer eigenStrategyManager
-        )
-    {
+    function _getArgs() internal {
         if (isMainnet()) {
             stETH = _ST_ETH;
             weth = _WETH;
