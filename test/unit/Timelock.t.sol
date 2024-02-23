@@ -8,7 +8,7 @@ import { PufferVault } from "src/PufferVault.sol";
 import { stETHMock } from "test/mocks/stETHMock.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
-import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
+import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract TimelockTest is Test {
@@ -19,7 +19,7 @@ contract TimelockTest is Test {
     Timelock public timelock;
 
     function setUp() public {
-        PufferDeployment memory deployment = new DeployPuffETH().run();
+        PufferDeployment memory deployment = new DeployPufETH().run();
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));

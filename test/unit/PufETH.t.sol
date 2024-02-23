@@ -10,7 +10,7 @@ import { PufferVault } from "../../src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
-import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
+import { DeployPufETH } from "script/DeployPufETH.s.sol";
 
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
@@ -22,7 +22,7 @@ contract PufETHTest is ERC4626Test {
     address communityMultisig = makeAddr("community");
 
     function setUp() public override {
-        PufferDeployment memory deployment = new DeployPuffETH().run();
+        PufferDeployment memory deployment = new DeployPufETH().run();
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));

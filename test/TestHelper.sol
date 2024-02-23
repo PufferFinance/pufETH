@@ -210,6 +210,15 @@ contract TestHelper is Test {
         return Permit({ deadline: t.deadline, amount: t.amount, v: t.v, r: t.r, s: t.s });
     }
 
+    function _finalizeWithdrawals(uint256 requestIdFinalized) internal {
+        // Alter WithdrawalRouter storage slot to mark our withdrawal requests as finalized
+        vm.store(
+            LIDO_WITHDRAWAL_QUEUE,
+            keccak256("lido.WithdrawalQueue.lastFinalizedRequestId"),
+            bytes32(uint256(requestIdFinalized))
+        );
+    }
+
     function _testTemps(string memory seed, address to, uint256 amount, uint256 deadline, bytes32 domainSeparator)
         internal
         returns (_TestTemps memory t)

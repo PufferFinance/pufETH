@@ -59,7 +59,6 @@ contract PufferVaultV2 is PufferVault {
         // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-
         _setDailyWithdrawalLimit(100 ether);
         _updateDailyWithdrawals(0);
     }

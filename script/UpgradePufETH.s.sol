@@ -9,16 +9,14 @@ import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { stETHMock } from "../test/mocks/stETHMock.sol";
 import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
 import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
-import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
-import { WETH9 } from "../test/mocks/WETH9.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 
 /**
  * @title UpgradePufETH
@@ -47,51 +45,23 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(address pufferVault, address accessManager, address pufferOracle) public broadcast {
-        (
-            IStETH stETH,
-            IWETH weth,
-            ILidoWithdrawalQueue lidoWithdrawalQueue,
-            IStrategy stETHStrategy,
-            IEigenLayer eigenStrategyManager
-        ) = _getArgs();
-
+    function run(PufferDeployment memory deployment, address pufferOracle) public broadcast {
         //@todo this is for tests only
-        AccessManager(accessManager).grantRole(1, _broadcaster, 0);
+        AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
         PufferVaultV2 newImplementation = new PufferVaultV2(
-            stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle)
+            IStETH(deployment.stETH),
+            IWETH(deployment.weth),
+            ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
+            IStrategy(deployment.stETHStrategyMock),
+            IEigenLayer(deployment.eigenStrategyManagerMock),
+            IPufferOracle(pufferOracle)
         );
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(
+        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
-    }
-
-    function _getArgs()
-        internal
-        returns (
-            IStETH stETH,
-            IWETH weth,
-            ILidoWithdrawalQueue lidoWithdrawalQueue,
-            IStrategy stETHStrategy,
-            IEigenLayer eigenStrategyManager
-        )
-    {
-        if (isMainnet()) {
-            stETH = _ST_ETH;
-            weth = _WETH;
-            lidoWithdrawalQueue = _LIDO_WITHDRAWAL_QUEUE;
-            stETHStrategy = _EIGEN_STETH_STRATEGY;
-            eigenStrategyManager = _EIGEN_STRATEGY_MANAGER;
-        } else {
-            stETH = IStETH(address(new stETHMock()));
-            weth = new WETH9();
-            lidoWithdrawalQueue = new LidoWithdrawalQueueMock();
-            stETHStrategy = new stETHStrategyMock();
-            eigenStrategyManager = new EigenLayerManagerMock();
-        }
     }
 }
