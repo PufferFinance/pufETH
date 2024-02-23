@@ -8,8 +8,8 @@ import { PufferVault } from "../../src/PufferVault.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
-import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
-import { UpgradePuffETH } from "script/UpgradePuffETH.s.sol";
+import { DeployPufETH } from "script/DeployPufETH.s.sol";
+import { UpgradePufETH } from "script/UpgradePufETH.s.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 import { WETH9 } from "../mocks/WETH9.sol";
 import { ROLE_ID_DAO } from "../../script/Roles.sol";
@@ -23,11 +23,11 @@ contract PufferVaultV2Property is ERC4626Test {
     WETH9 public weth;
 
     function setUp() public override {
-        PufferDeployment memory deployment = new DeployPuffETH().run();
+        PufferDeployment memory deployment = new DeployPufETH().run();
 
         MockPufferOracle mockOracle = new MockPufferOracle();
 
-        new UpgradePuffETH().run(deployment, address(mockOracle));
+        new UpgradePufETH().run(deployment, address(mockOracle));
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVaultV2(payable(deployment.pufferVault));

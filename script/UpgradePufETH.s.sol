@@ -50,25 +50,17 @@ contract UpgradePufETH is BaseScript {
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
         PufferVaultV2 newImplementation = new PufferVaultV2(
-<<<<<<< HEAD:script/UpgradePuffETH.s.sol
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IStrategy(deployment.stETHStrategyMock),
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle)
-=======
-            stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle)
->>>>>>> origin/main:script/UpgradePufETH.s.sol
         );
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);
-<<<<<<< HEAD:script/UpgradePuffETH.s.sol
         UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
-=======
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(
->>>>>>> origin/main:script/UpgradePufETH.s.sol
             address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
     }

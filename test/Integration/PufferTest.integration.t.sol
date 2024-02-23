@@ -13,7 +13,7 @@ import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-import { DeployPuffETH } from "script/DeployPuffETH.s.sol";
+import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { PufferVault } from "../../src/PufferVault.sol";
@@ -113,7 +113,7 @@ contract PufferTest is Test {
     }
 
     function _setupContracts() internal {
-        PufferDeployment memory deployment = new DeployPuffETH().run();
+        PufferDeployment memory deployment = new DeployPufETH().run();
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVault(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
