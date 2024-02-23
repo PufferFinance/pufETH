@@ -6,6 +6,16 @@ import { TestHelper } from "../TestHelper.sol";
 contract PufferVaultV2ForkTest is TestHelper {
     address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
 
+    // test setDailyWithdrawalLimit
+    function test_setDailyWithdrawalLimit() public withCaller(address(COMMUNITY_MULTISIG)) { // todo AccessManagedUnauthorized
+        // Whale has more than 100 ether, but the limit is 100 eth
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
+
+        uint96 newLimit = 999 ether;
+        pufferVault.setDailyWithdrawalLimit(newLimit);
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), newLimit, "daily withdrawal limit");
+    }
+
     function test_max_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
         assertEq(pufferVault.maxDeposit(alice), type(uint256).max, "max deposit");
     }
@@ -48,26 +58,35 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.getPendingLidoETHAmount(), 0, "0 pending lido eth");
         assertEq(pufferVault.totalAssets(), 351755.122828329778282991 ether, "total assets");
         assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
+        assertEq(pufferVault.getELBackingEthAmount(), 341562.667703458494350801 ether, "0 EL backing eth"); // mainnet fork 19271279);
     }
 
     // deposit WETH
     function test_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) withCaller(alice) {
         uint256 depositAmount = 100 ether;
         uint256 estimatedShares = pufferVault.previewDeposit(depositAmount);
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 sharesBefore = pufferVault.totalSupply();
         _WETH.approve(address(pufferVault), type(uint256).max);
         uint256 gotShares = pufferVault.deposit(depositAmount, alice);
         assertEq(estimatedShares, gotShares, "shares");
         assertLt(gotShares, depositAmount, "shares must be less than deposit");
+        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore + depositAmount, 1e9, "asset change"); 
+        assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore + estimatedShares, 1e9, "shares change"); 
     }
 
     // mint with WETH
     function test_mint() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) withCaller(alice) {
         uint256 sharesAmount = 5 ether;
         uint256 estimatedAssets = pufferVault.previewMint(5 ether);
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 sharesBefore = pufferVault.totalSupply();
         _WETH.approve(address(pufferVault), type(uint256).max);
         uint256 gotAssets = pufferVault.mint(sharesAmount, alice);
         assertEq(estimatedAssets, gotAssets, "got assets");
         assertLt(sharesAmount, gotAssets, "shares must be less than deposit");
+        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore + estimatedAssets, 1e9, "asset change"); 
+        assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore + sharesAmount, 1e9, "shares change"); 
     }
 
     // ETH and WETH and STETH deposits should give you the same amount of shares
@@ -77,6 +96,9 @@ contract PufferVaultV2ForkTest is TestHelper {
         giveToken(BLAST_DEPOSIT, address(stETH), alice, 100 ether)
         withCaller(alice)
     {
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 sharesBefore = pufferVault.totalSupply();
+
         // 10 ETH, 10 WETH, 10 stETH
         uint256 depositAmount = 10 ether;
 
@@ -90,6 +112,9 @@ contract PufferVaultV2ForkTest is TestHelper {
 
         assertEq(wethShares, stETHShares, "weth steth shares");
         assertEq(stETHShares, ethShares, "eth steth shares");
+
+        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore + 3 * depositAmount, 1e9, "asset change"); 
+        assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore + wethShares + stETHShares + ethShares, 1e9, "shares change"); 
     }
 
     // EL Deposits are Paused in the current block
@@ -106,12 +131,23 @@ contract PufferVaultV2ForkTest is TestHelper {
         amounts[0] = 1000 ether; // steth Amount
         amounts[1] = 1000 ether; // steth Amount
 
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 sharesBefore = pufferVault.totalSupply();
+
         vm.startPrank(OPERATIONS_MULTISIG);
         uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
+
+        assertEq(pufferVault.getPendingLidoETHAmount(), 2000 ether);
+
         _finalizeWithdrawals(requestIds[1]);
+
         vm.roll(block.number + 10 days);
 
         // Claim withdrawals
         pufferVault.claimWithdrawalsFromLido(requestIds);
+
+        // Should be unchanged
+        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore, 1e9, "asset change"); 
+        assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore, 1e9, "shares change"); 
     }
 }
