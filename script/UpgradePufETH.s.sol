@@ -32,9 +32,9 @@ import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/UpgradePuffETH.s.sol:UpgradePuffETH --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
+ *         PK=${deployer_pk} forge script script/UpgradePufETH.s.sol:UpgradePufETH --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
  */
-contract UpgradePuffETH is BaseScript {
+contract UpgradePufETH is BaseScript {
     /**
      * @dev Ethereum Mainnet addresses
      */
@@ -50,17 +50,25 @@ contract UpgradePuffETH is BaseScript {
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
         PufferVaultV2 newImplementation = new PufferVaultV2(
+<<<<<<< HEAD:script/UpgradePuffETH.s.sol
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IStrategy(deployment.stETHStrategyMock),
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle)
+=======
+            stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle)
+>>>>>>> origin/main:script/UpgradePufETH.s.sol
         );
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);
+<<<<<<< HEAD:script/UpgradePuffETH.s.sol
         UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
+=======
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(
+>>>>>>> origin/main:script/UpgradePufETH.s.sol
             address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
     }
