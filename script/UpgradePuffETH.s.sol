@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
-import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
@@ -59,14 +59,14 @@ contract UpgradePuffETH is BaseScript {
         //@todo this is for tests only
         AccessManager(accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultMainnet newImplementation = new PufferVaultMainnet(
+        PufferVaultV2 newImplementation = new PufferVaultV2(
             stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, IPufferOracle(pufferOracle)
         );
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(2);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
+            address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
     }
 

@@ -8,23 +8,18 @@ import { AccessManagedUpgradeable } from
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { IWstETH } from "./interface/Lido/IWstETH.sol";
-import { PufferVaultMainnet } from "./PufferVaultMainnet.sol";
+import { PufferVaultV2 } from "./PufferVaultV2.sol";
 import { PufferDepositorStorage } from "./PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IPufferDepositorMainnet } from "./interface/IPufferDepositorMainnet.sol";
+import { IPufferDepositorV2 } from "./interface/IPufferDepositorV2.sol";
 import { Permit } from "./structs/Permit.sol";
 
 /**
- * @title PufferDepositor
+ * @title PufferDepositorV2
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferDepositorMainnet is
-    IPufferDepositorMainnet,
-    PufferDepositorStorage,
-    AccessManagedUpgradeable,
-    UUPSUpgradeable
-{
+contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, AccessManagedUpgradeable, UUPSUpgradeable {
     using SafeERC20 for address;
 
     IStETH internal immutable _ST_ETH;
@@ -33,16 +28,16 @@ contract PufferDepositorMainnet is
     /**
      * @dev The Puffer Vault contract address
      */
-    PufferVaultMainnet public immutable PUFFER_VAULT;
+    PufferVaultV2 public immutable PUFFER_VAULT;
 
-    constructor(PufferVaultMainnet pufferVault, IStETH stETH) payable {
+    constructor(PufferVaultV2 pufferVault, IStETH stETH) payable {
         PUFFER_VAULT = pufferVault;
         _ST_ETH = stETH;
         _disableInitializers();
     }
 
     /**
-     * @inheritdoc IPufferDepositorMainnet
+     * @inheritdoc IPufferDepositorV2
      */
     function depositWstETH(Permit calldata permitData, address recipient)
         external
@@ -66,7 +61,7 @@ contract PufferDepositorMainnet is
     }
 
     /**
-     * @inheritdoc IPufferDepositorMainnet
+     * @inheritdoc IPufferDepositorV2
      */
     function depositStETH(Permit calldata permitData, address recipient)
         external

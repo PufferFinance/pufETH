@@ -4,8 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
-import { PufferDepositorMainnet } from "../src/PufferDepositorMainnet.sol";
+import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -53,8 +53,8 @@ contract TestHelper is Test {
         bytes32 domainSeparator;
     }
 
-    PufferDepositorMainnet public pufferDepositor;
-    PufferVaultMainnet public pufferVault;
+    PufferDepositorV2 public pufferDepositor;
+    PufferVaultV2 public pufferVault;
     AccessManager public accessManager;
     Timelock public timelock;
 
@@ -122,8 +122,8 @@ contract TestHelper is Test {
     }
 
     function _setupLiveContracts() internal {
-        pufferDepositor = PufferDepositorMainnet(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
-        pufferVault = PufferVaultMainnet(payable(0xD9A442856C234a39a81a089C06451EBAa4306a72));
+        pufferDepositor = PufferDepositorV2(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
+        pufferVault = PufferVaultV2(payable(0xD9A442856C234a39a81a089C06451EBAa4306a72));
         accessManager = AccessManager(payable(0x8c1686069474410E6243425f4a10177a94EBEE11));
         timelock = Timelock(payable(0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA));
 
@@ -156,7 +156,7 @@ contract TestHelper is Test {
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultMainnet newImplementation = new PufferVaultMainnet(
+        PufferVaultV2 newImplementation = new PufferVaultV2(
             _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
         );
 
@@ -168,20 +168,20 @@ contract TestHelper is Test {
         //@todo To go this way, we need to setTargetRole for upgradeToAndCall to `0` (admin role of AccessManager)
         // timelock.executeTransaction(
         //     address(pufferVault),
-        //     abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ()))),
+        //     abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))),
         //     1
         // );
 
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultMainnet.initialize, ())
+            address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
 
         // Upgrade PufferDepositor
 
-        PufferDepositorMainnet newDepositorImplementation =
-            new PufferDepositorMainnet(PufferVaultMainnet(payable(pufferVault)), _ST_ETH);
+        PufferDepositorV2 newDepositorImplementation =
+            new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), _ST_ETH);
 
         // Upgrade PufferDepositor - no initializer here
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));

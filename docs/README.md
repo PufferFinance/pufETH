@@ -39,7 +39,7 @@ Following the withdrawal process, the ETH will be utilized to provision decentra
 | -------- | -------- | -------- | -------- | -------- |
 | [`IPufferVault.sol`](../src/interface/IPufferVault.sol) | Singleton | / | YES | / |
 | [`PufferVault.sol`](../src/PufferVault.sol) | Singleton | UUPS Proxy | YES | / |
-| [`PufferVaultMainnet.sol`](../src/PufferVaultMainnet.sol) | Singleton | UUPS Proxy | NO | / |
+| [`PufferVaultV2.sol`](../src/PufferVaultV2.sol) | Singleton | UUPS Proxy | NO | / |
 | [`PufferVaultStorage.sol`](../src/PufferVaultStorage.sol) | Singleton | UUPS Proxy | YES | / |
 
 The Puffer Vault is the contract in charge of holding funds for the Puffer Protocol. Initially, it will store stETH and deposit into EigenLayer. Then, once the Puffer mainnet launch happens, it will withdraw this stETH and hold ETH instead, which will be used to provision validators for the Puffer Protocol.
@@ -52,6 +52,7 @@ See full documentation in [./PufferVault.md](./PufferVault.md)
 | -------- | -------- | -------- | -------- | -------- |
 | [`IPufferDepositor.sol`](../src/interface/IPufferDepositor.sol) | Singleton | / | YES | / |
 | [`PufferDepositor.sol`](../src/PufferDepositor.sol) | Singleton | UUPS Proxy | NO | / |
+| [`PufferDepositorV2.sol`](../src/PufferDepositorV2.sol) | Singleton | UUPS Proxy | NO | / |
 | [`PufferDepositorStorage.sol`](../src/PufferDepositorStorage.sol) | Singleton | UUPS Proxy | YES | / |
 
 These contracts support depositing into our vault, and allow swapping other assets into depositable assets.

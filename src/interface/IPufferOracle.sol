@@ -7,7 +7,6 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferOracle {
-
     /**
      * @notice Thrown if the new VT mint price is is invalid
      */

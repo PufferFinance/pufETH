@@ -5,7 +5,7 @@ import { TestHelper } from "../TestHelper.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
-contract PufferDepositorMainnetForkTest is TestHelper {
+contract PufferDepositorV2MainnetForkTest is TestHelper {
     // StETH deposit through depositor and directly should mint the same amount
     function test_stETH_permit_deposit()
         public
@@ -59,7 +59,7 @@ contract PufferDepositorMainnetForkTest is TestHelper {
         // Create an unsigned permit to call function
         Permit memory unsignedPermit = Permit(0, 100 ether, 0, 0, 0);
         IERC20(address(stETH)).approve(address(pufferDepositor), 100 ether);
-        
+
         uint256 depositorAmount = pufferDepositor.depositStETH(unsignedPermit, alice);
 
         assertEq(depositorAmount, pufferVault.balanceOf(alice), "alice got the tokens");
@@ -80,7 +80,7 @@ contract PufferDepositorMainnetForkTest is TestHelper {
         // Create an unsigned permit to call function
         Permit memory unsignedPermit = Permit(0, 100 ether, 0, 0, 0);
         IERC20(address(stETH)).approve(address(pufferDepositor), 100 ether);
-        
+
         uint256 depositorAmount = pufferDepositor.depositStETH(unsignedPermit, bob);
 
         assertEq(depositorAmount, pufferVault.balanceOf(bob), "bob got the tokens");

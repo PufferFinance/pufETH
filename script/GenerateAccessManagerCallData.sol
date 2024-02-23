@@ -5,8 +5,8 @@ import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
-import { PufferVaultMainnet } from "../src/PufferVaultMainnet.sol";
-import { PufferDepositorMainnet } from "../src/PufferDepositorMainnet.sol";
+import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "./Roles.sol";
 
 /**
@@ -26,11 +26,11 @@ contract GenerateAccessManagerCallData is Script {
     {
         // Public selectors for PufferVault
         bytes4[] memory publicSelectors = new bytes4[](5);
-        publicSelectors[0] = PufferVaultMainnet.withdraw.selector;
-        publicSelectors[1] = PufferVaultMainnet.redeem.selector;
-        publicSelectors[2] = PufferVaultMainnet.depositETH.selector;
-        publicSelectors[3] = PufferVaultMainnet.depositStETH.selector;
-        publicSelectors[4] = PufferVaultMainnet.burn.selector;
+        publicSelectors[0] = PufferVaultV2.withdraw.selector;
+        publicSelectors[1] = PufferVaultV2.redeem.selector;
+        publicSelectors[2] = PufferVaultV2.depositETH.selector;
+        publicSelectors[3] = PufferVaultV2.depositStETH.selector;
+        publicSelectors[4] = PufferVaultV2.burn.selector;
         // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
 
         bytes memory publicSelectorsCallData = abi.encodeWithSelector(
@@ -39,8 +39,8 @@ contract GenerateAccessManagerCallData is Script {
 
         // PufferDepositor public selectors
         bytes4[] memory publicSelectorsDepositor = new bytes4[](2);
-        publicSelectorsDepositor[0] = PufferDepositorMainnet.depositStETH.selector;
-        publicSelectorsDepositor[1] = PufferDepositorMainnet.depositWstETH.selector;
+        publicSelectorsDepositor[0] = PufferDepositorV2.depositStETH.selector;
+        publicSelectorsDepositor[1] = PufferDepositorV2.depositWstETH.selector;
 
         bytes memory publicSelectorsCallDataDepositor = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
@@ -50,7 +50,7 @@ contract GenerateAccessManagerCallData is Script {
 
         // DAO selectors
         bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferVaultMainnet.setDailyWithdrawalLimit.selector;
+        daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
         bytes memory daoSelectorsCallData = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, daoSelectors, ROLE_ID_DAO
@@ -58,8 +58,8 @@ contract GenerateAccessManagerCallData is Script {
 
         // Puffer Protocol only
         bytes4[] memory protocolSelectors = new bytes4[](2);
-        protocolSelectors[0] = PufferVaultMainnet.burn.selector;
-        protocolSelectors[1] = PufferVaultMainnet.transferETH.selector;
+        protocolSelectors[0] = PufferVaultV2.burn.selector;
+        protocolSelectors[1] = PufferVaultV2.transferETH.selector;
 
         bytes memory protocolSelectorsCalldata = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

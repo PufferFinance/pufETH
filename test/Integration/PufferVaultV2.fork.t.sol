@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { TestHelper } from "../TestHelper.sol";
 
-contract PufferVaultMainnetForkTest is TestHelper {
+contract PufferVaultV2ForkTest is TestHelper {
     function test_max_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
         assertEq(pufferVault.maxDeposit(alice), type(uint256).max, "max deposit");
     }
