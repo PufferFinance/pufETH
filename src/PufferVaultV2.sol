@@ -11,13 +11,16 @@ import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
- * @title PufferVault
+ * @title PufferVaultV2
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferVaultMainnet is PufferVault {
+contract PufferVaultV2 is PufferVault {
     using SafeERC20 for address;
 
+    /**
+     * @dev Thrown if the Vault doesn't have ETH liquidity to transfer to PufferModule
+     */
     error ETHTransferFailed();
 
     /**
@@ -109,7 +112,7 @@ contract PufferVaultMainnet is PufferVault {
     }
 
     /**
-     * @notice Withdrawals are allowed an the asset out is WETH
+     * @notice Withdrawals are allowed if the asset out is WETH
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
      */

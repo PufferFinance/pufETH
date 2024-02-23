@@ -3,7 +3,8 @@ gas_reports=[
     "PufferDepositor",
     "PufferOracle",
     "PufferVault",
-    "PufferVaultMainnet",
+    "PufferVaultV2",
+    "PufferDepositorV2",
 ]
 fs_permissions = [{ access = "read-write", path = "./"}]
 src = "src"

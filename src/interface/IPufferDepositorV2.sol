@@ -4,11 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Permit } from "../structs/Permit.sol";
 
 /**
- * @title PufferDepositor
+ * @title IPufferDepositorV2
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferDepositorMainnet {
+interface IPufferDepositorV2 {
     /**
      * @notice Deposits wrapped stETH (wstETH) into the Puffer Vault
      * @param permitData The permit data containing the approval information

@@ -4,7 +4,7 @@
 | -------- | -------- | -------- | -------- | -------- |
 | [`IPufferVault.sol`](../src/interface/IPufferVault.sol) | Singleton | / | YES | / |
 | [`PufferVault.sol`](../src/PufferVault.sol) | Singleton | UUPS Proxy | YES | / |
-| [`PufferVaultMainnet.sol`](../src/PufferVaultMainnet.sol) | Singleton | UUPS Proxy | NO | / |
+| [`PufferVaultV2.sol`](../src/PufferVaultV2.sol) | Singleton | UUPS Proxy | NO | / |
 | [`PufferVaultStorage.sol`](../src/PufferVaultStorage.sol) | Singleton | UUPS Proxy | YES | / |
 
 The Puffer Vault is in charge of custodying funds for the protocol. Initially it will facilitate depositing stETH into EigenLayer to farm points. Then it will facilitate both withdrawing stETH from EigenLayer and subsequently withdrawing stETH from Lido to redeem ETH. 
@@ -18,7 +18,7 @@ This document organizes methods according to the following themes (click each to
 
 #### Important state variables
 
-The PufferVault maintains the addresses of important contracts related to EigenLayer and Lido. The PufferVaultMainnet accesses PufferVaultStorage, where other important information is maintained. Important state variables are described below:
+The PufferVault maintains the addresses of important contracts related to EigenLayer and Lido. The PufferVaultV2 accesses PufferVaultStorage, where other important information is maintained. Important state variables are described below:
 
 #### PufferVault
 
