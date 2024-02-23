@@ -34,9 +34,9 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/UpgradePuffETH.s.sol:UpgradePuffETH --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
+ *         PK=${deployer_pk} forge script script/UpgradePufETH.s.sol:UpgradePufETH --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
  */
-contract UpgradePuffETH is BaseScript {
+contract UpgradePufETH is BaseScript {
     /**
      * @dev Ethereum Mainnet addresses
      */
