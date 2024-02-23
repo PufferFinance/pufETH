@@ -7,6 +7,12 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferOracle {
+
+    /**
+     * @notice Thrown if the new VT mint price is is invalid
+     */
+    error InvalidValidatorTicketPrice();
+
     /**
      * @notice Emitted when the price to mint VT is updated
      * @dev Signature "0xf76811fec27423d0853e6bf49d7ea78c666629c2f67e29647d689954021ae0ea"
