@@ -4,6 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { TestHelper } from "../TestHelper.sol";
 
 contract PufferVaultV2ForkTest is TestHelper {
+    address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
+
     function test_max_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
         assertEq(pufferVault.maxDeposit(alice), type(uint256).max, "max deposit");
     }
@@ -13,14 +15,28 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.maxWithdraw(alice), 0, "max withdraw");
         assertEq(pufferVault.maxRedeem(alice), 0, "max maxRedeem");
 
-        // Justin Sun is big puffer whale? or big puffer? hmm..
-        assertEq(pufferVault.maxWithdraw(0x176F3DAb24a159341c0509bB36B833E7fdd0a132), 100 ether, "max withdraw justin");
+        // Whale has more than 100 ether, but the limit is 100 eth
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
         // pufETH is worth more than ETH
-        assertEq(
-            pufferVault.maxRedeem(0x176F3DAb24a159341c0509bB36B833E7fdd0a132),
-            99.811061309125114006 ether,
-            "max redeem justin"
-        );
+        assertEq(pufferVault.maxRedeem(pufferWhale), 99.811061309125114006 ether, "max redeem");
+    }
+
+    function test_withdrawal() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        vm.startPrank(pufferWhale);
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
+
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
+        pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 50 ether, "daily withdrawal limit reduced");
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 50 ether, "leftover max withdraw");
+
+        pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 0 ether, "no leftover max withdraw");
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0 ether, "everything withdrawn");
     }
 
     // Sanity check
@@ -29,7 +45,9 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.symbol(), "pufETH", "symbol");
         assertEq(pufferVault.decimals(), 18, "decimals");
         assertEq(pufferVault.asset(), address(_WETH), "asset");
+        assertEq(pufferVault.getPendingLidoETHAmount(), 0, "0 pending lido eth");
         assertEq(pufferVault.totalAssets(), 351755.122828329778282991 ether, "total assets");
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
     }
 
     // deposit WETH
@@ -82,4 +100,18 @@ contract PufferVaultV2ForkTest is TestHelper {
     //     uint256 exchangeRateAfterDeposit = pufferVault.previewDeposit(1 ether);
     //     assertEq(exchangeRateBefore, exchangeRateAfterDeposit, "exchange rate must not change after the deposit to EL");
     // }
+
+    function _withdraw_stETH_from_lido() public {
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1000 ether; // steth Amount
+        amounts[1] = 1000 ether; // steth Amount
+
+        vm.startPrank(OPERATIONS_MULTISIG);
+        uint256[] memory requestIds = pufferVault.initiateETHWithdrawalsFromLido(amounts);
+        _finalizeWithdrawals(requestIds[1]);
+        vm.roll(block.number + 10 days);
+
+        // Claim withdrawals
+        pufferVault.claimWithdrawalsFromLido(requestIds);
+    }
 }
