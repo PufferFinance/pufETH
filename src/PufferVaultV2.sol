@@ -9,6 +9,7 @@ import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 /**
  * @title PufferVaultV2
@@ -17,6 +18,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
  */
 contract PufferVaultV2 is PufferVault {
     using SafeERC20 for address;
+    using EnumerableMap for EnumerableMap.UintToUintMap;
 
     /**
      * @dev Thrown if the Vault doesn't have ETH liquidity to transfer to PufferModule
@@ -28,6 +30,18 @@ contract PufferVaultV2 is PufferVault {
      * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
      */
     event DailyWithdrawalLimitSet(uint96 oldLimit, uint96 newLimit);
+
+    /**
+     * Emitted when the Vault transfers ETH to a specified address
+     * @dev Signature: 0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d
+     */
+    event TransferredETH(address indexed to, uint256 amount);
+
+    /**
+     * Emitted when the Vault gets ETH from Lido
+     * @dev Signature: 0xb5cd6ba4df0e50a9991fc91db91ea56e2f134e498a70fc7224ad61d123e5bbb0
+     */
+    event LidoWithdrawal(uint256 expectedWithdrawal, uint256 actualWithdrawal);
 
     /**
      * @dev The Wrapped Ethereum ERC20 token
@@ -51,6 +65,9 @@ contract PufferVaultV2 is PufferVault {
         PUFFER_ORACLE = oracle;
         _disableInitializers();
     }
+
+    // solhint-disable-next-line no-complex-fallback
+    receive() external payable virtual override { }
 
     /**
      * @notice Changes token from stETH to WETH
@@ -206,6 +223,67 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
+     * @notice Initiates ETH withdrawals from Lido
+     * Restricted to Operations Multisig
+     * @param amounts An array of amounts that we want to queue
+     */
+    function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
+        external
+        virtual
+        override
+        restricted
+        returns (uint256[] memory requestIds)
+    {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        uint256 lockedAmount;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            lockedAmount += amounts[i];
+        }
+        $.lidoLockedETH += lockedAmount;
+
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
+        requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
+
+        for (uint256 i = 0; i < requestIds.length; ++i) {
+            $.lidoWithdrawalAmounts.set(requestIds[i], amounts[i]);
+        }
+        emit RequestedWithdrawals(requestIds);
+        return requestIds;
+    }
+
+    /**
+     * @notice Claims ETH withdrawals from Lido
+     * Restricted to Operations Multisig
+     * @param requestIds An array of request IDs for the withdrawals
+     */
+    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        // ETH balance before the claim
+        uint256 balanceBefore = address(this).balance;
+
+        uint256 expectedWithdrawal = 0;
+
+        for (uint256 i = 0; i < requestIds.length; ++i) {
+            // .get reverts if requestId is not present
+            expectedWithdrawal += $.lidoWithdrawalAmounts.get(requestIds[i]);
+
+            // slither-disable-next-line calls-loop
+            _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
+        }
+
+        // ETH balance after the claim
+        uint256 balanceAfter = address(this).balance;
+        uint256 actualWithdrawal = balanceAfter - balanceBefore;
+        // Deduct from the locked amount the expected amount
+        $.lidoLockedETH -= expectedWithdrawal;
+
+        emit ClaimedWithdrawals(requestIds);
+        emit LidoWithdrawal(expectedWithdrawal, actualWithdrawal);
+    }
+
+    /**
      * @notice Transfers ETH to a specified address
      * @dev Restricted to PufferProtocol smart contract
      * We use it to transfer ETH to PufferModule
@@ -217,6 +295,7 @@ contract PufferVaultV2 is PufferVault {
         // If we don't have enough ETH for the transfer, unwrap WETH
         uint256 ethBalance = address(this).balance;
         if (ethBalance < ethAmount) {
+            // Reverts if no WETH to unwrap
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
@@ -226,11 +305,13 @@ contract PufferVaultV2 is PufferVault {
         if (!success) {
             revert ETHTransferFailed();
         }
+
+        emit TransferredETH(to, ethAmount);
     }
 
     /**
      * @notice Allows the `msg.sender` to burn his shares
-     * @dev Restricted to PufferProtocol smart contract
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * We use it to burn the bond if the node operator gets slashed
      * @param shares The amount of shares to burn
      */
@@ -240,7 +321,7 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @notice Sets a new daily withdrawal limit
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      * @param newLimit The new daily limit to be set
      */
     function setDailyWithdrawalLimit(uint96 newLimit) external restricted {

@@ -15,3 +15,5 @@ uint64 constant ROLE_ID_PAUSER = 999;
 
 // Public role (defined in AccessManager.sol)
 uint64 constant PUBLIC_ROLE = type(uint64).max;
+// Admin role (defined in AccessManager.sol) (only Timelock.sol must have this role)
+uint64 constant ADMIN_ROLE = 0;
