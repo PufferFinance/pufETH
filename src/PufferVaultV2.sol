@@ -30,6 +30,12 @@ contract PufferVaultV2 is PufferVault {
     event DailyWithdrawalLimitSet(uint96 oldLimit, uint96 newLimit);
 
     /**
+     * Emitted when the Vault transfers ETH to a specified address
+     * @dev Signature: 0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d
+     */
+    event TransferredETH(address indexed to, uint256 amount);
+
+    /**
      * @dev The Wrapped Ethereum ERC20 token
      */
     IWETH internal immutable _WETH;
@@ -50,6 +56,16 @@ contract PufferVaultV2 is PufferVault {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
         _disableInitializers();
+    }
+
+    // solhint-disable-next-line no-complex-fallback
+    receive() external payable virtual override {
+        // If we don't use this pattern, somebody can create a Lido withdrawal, claim it to this contract
+        // Making `$.lidoLockedETH -= msg.value` revert
+        VaultStorage storage $ = _getPufferVaultStorage();
+        if ($.isLidoWithdrawal) {
+            $.lidoLockedETH -= msg.value;
+        }
     }
 
     /**
@@ -217,6 +233,7 @@ contract PufferVaultV2 is PufferVault {
         // If we don't have enough ETH for the transfer, unwrap WETH
         uint256 ethBalance = address(this).balance;
         if (ethBalance < ethAmount) {
+            // Reverts if no WETH to unwrap
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
@@ -226,6 +243,8 @@ contract PufferVaultV2 is PufferVault {
         if (!success) {
             revert ETHTransferFailed();
         }
+
+        emit TransferredETH(to, ethAmount);
     }
 
     /**

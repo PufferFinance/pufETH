@@ -3,7 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { TestHelper } from "../TestHelper.sol";
-import { ROLE_ID_DAO } from "../../script/Roles.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 
 contract PufferVaultV2ForkTest is TestHelper {
     address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
@@ -117,19 +119,102 @@ contract PufferVaultV2ForkTest is TestHelper {
         pufferVault.depositStETH(100 ether + 1, alice);
     }
 
+    function test_change_withdrawal_limit() public {
+        _withdraw_stETH_from_lido();
+
+        address dao = makeAddr("dao");
+
+        // Grant DAO role to 'dao' address
+        vm.startPrank(address(timelock));
+        accessManager.grantRole(ROLE_ID_DAO, dao, 0);
+
+        vm.startPrank(pufferWhale);
+        pufferVault.withdraw(20 ether, pufferWhale, pufferWhale);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 80 ether, "daily withdrawal limit");
+
+        // Set the new limit
+        uint96 newLimit = 10 ether;
+        vm.startPrank(dao);
+        pufferVault.setDailyWithdrawalLimit(newLimit);
+
+        // The remaining limit is 0, because the whale already withdrew 20 ether today
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0, "0 left");
+    }
+
     function test_burn() public withCaller(pufferWhale) {
-        uint256 assetsBefore = pufferVault.totalAssets();
-        uint256 sharesBefore = pufferVault.totalSupply();
-        uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
+        vm.expectRevert();
+        pufferVault.burn(100 ether);
+        // Grant PufferProtocol role to the whale, because he has tokens to burn
+        vm.startPrank(address(timelock));
+        accessManager.grantRole(ROLE_ID_PUFFER_PROTOCOL, pufferWhale, 0);
 
-        // burn all of whale's shares
-        pufferVault.burn(whaleShares);
+        // burn works
+        vm.startPrank(pufferWhale);
 
-        // no change to assets
-        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore, 1e9, "asset change");
-        // shares are reduced
-        assertApproxEqAbs(pufferVault.balanceOf(pufferWhale), 0, 1e9, "shares change");
-        assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore - whaleShares, 1e9, "shares change");
+        uint256 balanceBefore = pufferVault.balanceOf(pufferWhale);
+
+        vm.expectEmit(true, true, true, true);
+        emit IERC20.Transfer(pufferWhale, address(0), 100 ether);
+        pufferVault.burn(100 ether);
+
+        uint256 balanceAfter = pufferVault.balanceOf(pufferWhale);
+        assertEq(balanceAfter, balanceBefore - 100 ether, "balance");
+    }
+
+    function test_transferETH() public {
+        // Give ETH liquidity
+        _withdraw_stETH_from_lido();
+
+        address mockProtocol = makeAddr("mockProtocol");
+
+        // This contract has no ROLE_ID_PUFFER_PROTOCOL, so this reverts
+        vm.expectRevert();
+        pufferVault.transferETH(mockProtocol, 10 ether);
+
+        // Grant Protocol role to mockProtocol address
+        vm.startPrank(address(timelock));
+        accessManager.grantRole(ROLE_ID_PUFFER_PROTOCOL, mockProtocol, 0);
+
+        assertEq(mockProtocol.balance, 0 ether, "protocol ETH");
+
+        vm.startPrank(mockProtocol);
+        vm.expectEmit(true, true, true, true);
+        emit PufferVaultV2.TransferredETH(mockProtocol, 10 ether);
+        pufferVault.transferETH(mockProtocol, 10 ether);
+
+        assertEq(mockProtocol.balance, 10 ether, "protocol ETH after");
+    }
+
+    function test_transferETH_with_weth_liquidity() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
+        // NO ETH liquidity, but we have WETH
+
+        address mockProtocol = makeAddr("mockProtocol");
+
+        // Grant Protocol role to mockProtocol address
+        vm.startPrank(address(timelock));
+        accessManager.grantRole(ROLE_ID_PUFFER_PROTOCOL, mockProtocol, 0);
+
+        assertEq(mockProtocol.balance, 0 ether, "protocol ETH");
+
+        vm.startPrank(mockProtocol);
+        vm.expectRevert();
+        pufferVault.transferETH(mockProtocol, 10 ether);
+
+        // Alice deposits 100 WETH
+        vm.startPrank(alice);
+        _WETH.approve(address(pufferVault), type(uint256).max);
+        pufferVault.deposit(100 ether, alice);
+
+        // Alice tries to transferETH, got no permissions
+        vm.expectRevert();
+        pufferVault.transferETH(mockProtocol, 10 ether);
+
+        // Now it works
+        vm.startPrank(mockProtocol);
+        pufferVault.transferETH{ gas: 800000 }(mockProtocol, 10 ether);
+
+        assertEq(mockProtocol.balance, 10 ether, "protocol ETH after");
     }
 
     function test_redeem_fails_if_no_eth_seeded() public withCaller(pufferWhale) {
@@ -139,7 +224,7 @@ contract PufferVaultV2ForkTest is TestHelper {
         uint256 maxWhaleRedeemableShares = pufferVault.maxRedeem(pufferWhale);
 
         vm.expectRevert();
-        uint256 redeemedAssets = pufferVault.redeem(maxWhaleRedeemableShares, pufferWhale, pufferWhale);
+        pufferVault.redeem(maxWhaleRedeemableShares, pufferWhale, pufferWhale);
     }
 
     function test_redeem_succeeds_if_seeded_with_eth() public withCaller(pufferWhale) {

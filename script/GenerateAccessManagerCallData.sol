@@ -25,12 +25,11 @@ contract GenerateAccessManagerCallData is Script {
         returns (bytes memory)
     {
         // Public selectors for PufferVault
-        bytes4[] memory publicSelectors = new bytes4[](5);
+        bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = PufferVaultV2.withdraw.selector;
         publicSelectors[1] = PufferVaultV2.redeem.selector;
         publicSelectors[2] = PufferVaultV2.depositETH.selector;
         publicSelectors[3] = PufferVaultV2.depositStETH.selector;
-        publicSelectors[4] = PufferVaultV2.burn.selector;
         // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
 
         bytes memory publicSelectorsCallData = abi.encodeWithSelector(
@@ -58,14 +57,11 @@ contract GenerateAccessManagerCallData is Script {
 
         // Puffer Protocol only
         bytes4[] memory protocolSelectors = new bytes4[](2);
-        protocolSelectors[0] = PufferVaultV2.burn.selector;
-        protocolSelectors[1] = PufferVaultV2.transferETH.selector;
+        protocolSelectors[0] = PufferVaultV2.transferETH.selector;
+        protocolSelectors[1] = PufferVaultV2.burn.selector;
 
         bytes memory protocolSelectorsCalldata = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferProtocolProxy,
-            protocolSelectors,
-            ROLE_ID_PUFFER_PROTOCOL
+            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, protocolSelectors, ROLE_ID_PUFFER_PROTOCOL
         );
 
         bytes[] memory calldatas = new bytes[](4);
