@@ -5,7 +5,7 @@ import { TestHelper } from "../TestHelper.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
-contract PufferDepositorV2MainnetForkTest is TestHelper {
+contract PufferDepositorV2ForkTest is TestHelper {
     // StETH deposit through depositor and directly should mint the same amount
     function test_stETH_permit_deposit()
         public
