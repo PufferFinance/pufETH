@@ -230,7 +230,7 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @notice Allows the `msg.sender` to burn his shares
-     * @dev Restricted to PufferProtocol smart contract
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * We use it to burn the bond if the node operator gets slashed
      * @param shares The amount of shares to burn
      */
@@ -240,7 +240,7 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @notice Sets a new daily withdrawal limit
-     * @dev Restricted to DAO
+     * @dev Restricted to the DAO
      * @param newLimit The new daily limit to be set
      */
     function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
