@@ -82,16 +82,20 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @dev See {IERC4626-totalAssets}.
-     * Eventually, stETH will not exist anymore, and the Vault will represent shares of total ETH holdings
-     * ETH to stETH is always 1:1 (stETH is rebasing token)
-     * Sum of EL assets + Vault Assets
+     * pufETH, the shares of the vault, will be backed primarily by the WETH asset. 
+     * However, at any point in time, the full backings may be a combination of stETH, WETH, and ETH.
+     * `totalAssets()` is calculated by summing the following:
+     * - WETH held in the vault contract
+     * - ETH  held in the vault contract
+     * - PUFFER_ORACLE.getLockedEthAmount(), which is the oracle-reported Puffer validator ETH locked in the Beacon chain
+     * - stETH held in the vault contract, in EigenLayer's stETH strategy, and in Lido's withdrawal queue. (we assume stETH is always 1:1 with ETH since it's rebasing)
      *
-     * NOTE on the native ETH deposit:
+     * NOTE on the native ETH deposits:
      * When dealing with NATIVE ETH deposits, we need to deduct callvalue from the balance.
      * The contract calculates the amount of shares(pufETH) to mint based on the total assets.
-     * When a user sends ETH, the msg.value is immediately added to address(this).balance, and address(this.balance) is included in the total assets.
-     * Because of that we must deduct the callvalue from the balance to avoid the user getting more shares than he should.
-     * We can't use msg.value in a view function, so we use assembly to get the callvalue.
+     * When a user sends ETH, the msg.value is immediately added to address(this).balance.
+     * Since address(this.balance)` is used in calculating `totalAssets()`, we must deduct the `callvalue()` from the balance to prevent the user from minting excess shares.
+     * `msg.value` cannot be accessed from a view function, so we use assembly to get the callvalue.
      */
     function totalAssets() public view virtual override returns (uint256) {
         uint256 callValue;
@@ -104,7 +108,7 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Calculates the maximum amount of assets that can be withdrawn by the `owner`.
+     * @notice Calculates the maximum amount of assets (WETH) that can be withdrawn by the `owner`.
      * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
      * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
      * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
@@ -116,7 +120,7 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Calculates the maximum amount of shares that can be redeemed by the `owner`.
+     * @notice Calculates the maximum amount of shares (pufETH) that can be redeemed by the `owner`.
      * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
      * @param owner The address of the owner for which the maximum redeemable shares are calculated.
      * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
@@ -128,9 +132,14 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Withdrawals are allowed if the asset out is WETH
+     * @notice Withdrawals WETH assets from the vault, burning the `owner`'s (pufETH) shares. 
+     * The caller of this function does not have to be the `owner` if the `owner` has approved the caller to spend their pufETH.
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
+     * @param assets The amount of assets (WETH) to withdraw
+     * @param receiver The address to receive the assets (WETH)
+     * @param owner The address of the owner for which the shares (pufETH) are burned.
+     * @return shares The amount of shares (pufETH) burned
      */
     function withdraw(uint256 assets, address receiver, address owner)
         public
@@ -156,9 +165,14 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Withdrawals are allowed an the asset out is WETH
+     * @notice Redeems (pufETH) `shares` to receive (WETH) assets from the vault, burning the `owner`'s (pufETH) `shares`. 
+     * The caller of this function does not have to be the `owner` if the `owner` has approved the caller to spend their pufETH.
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
+     * @param shares The amount of shares (pufETH) to withdraw
+     * @param receiver The address to receive the assets (WETH)
+     * @param owner The address of the owner for which the shares (pufETH) are burned.
+     * @return assets The amount of assets (WETH) redeemed
      */
     function redeem(uint256 shares, address receiver, address owner)
         public
@@ -185,8 +199,10 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Deposits native ETH
+     * @notice Deposits native ETH into the Puffer Vault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
      */
     function depositETH(address receiver) public payable virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
@@ -202,8 +218,11 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Deposits stETH
+     * @notice Deposits stETH into the Puffer Vault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @param assets The amount of stETH to deposit
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
      */
     function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
@@ -224,8 +243,9 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @notice Initiates ETH withdrawals from Lido
-     * Restricted to Operations Multisig
-     * @param amounts An array of amounts that we want to queue
+     * @dev Restricted to Operations Multisig
+     * @param amounts An array of stETH amounts to queue
+     * @return requestIds An array of request IDs for the withdrawals
      */
     function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
         external
@@ -254,7 +274,7 @@ contract PufferVaultV2 is PufferVault {
 
     /**
      * @notice Claims ETH withdrawals from Lido
-     * Restricted to Operations Multisig
+     * @dev Restricted to Operations Multisig
      * @param requestIds An array of request IDs for the withdrawals
      */
     function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
@@ -284,10 +304,10 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Transfers ETH to a specified address
+     * @notice Transfers ETH to a specified address.
      * @dev Restricted to PufferProtocol smart contract
-     * We use it to transfer ETH to PufferModule
-     * @param to The address of the module to transfer ETH to
+     * @dev It is used to transfer ETH to PufferModules to fund Puffer validators.
+     * @param to The address of the PufferModule to transfer ETH to
      * @param ethAmount The amount of ETH to transfer
      */
     function transferETH(address to, uint256 ethAmount) external restricted {
@@ -310,9 +330,9 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Allows the `msg.sender` to burn his shares
+     * @notice Allows the `msg.sender` to burn their (pufETH) shares
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     * We use it to burn the bond if the node operator gets slashed
+     * @dev It is used to burn portions of Puffer validator bonds due to inactivity or slashing
      * @param shares The amount of shares to burn
      */
     function burn(uint256 shares) public restricted {
@@ -343,6 +363,10 @@ contract PufferVaultV2 is PufferVault {
         return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
     }
 
+    /**
+     * @notice Wraps the vault's ETH balance to WETH.
+     * @dev Used to provide WETH liquidity
+     */
     function _wrapETH(uint256 assets) internal {
         uint256 wethBalance = _WETH.balanceOf(address(this));
 
@@ -352,7 +376,8 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @param withdrawalAmount is the assets amount, not shares
+     * @notice Updates the amount of assets (WETH) withdrawn today
+     * @param withdrawalAmount is the assets (WETH) amount
      */
     function _updateDailyWithdrawals(uint256 withdrawalAmount) internal {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -367,7 +392,8 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @param newLimit is the assets amount, not shares
+     * @notice Updates the maximum amount of assets (WETH) that can be withdrawn daily
+     * @param newLimit is the assets (WETH) amount
      */
     function _setDailyWithdrawalLimit(uint96 newLimit) internal {
         VaultStorage storage $ = _getPufferVaultStorage();
