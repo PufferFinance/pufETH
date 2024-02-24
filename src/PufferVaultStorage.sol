@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 /**
  * @title PufferVaultStorage
@@ -18,12 +19,13 @@ abstract contract PufferVaultStorage {
      *      +-----------------------------------------------------------+
      */
     struct VaultStorage {
-        // 5 Slots for Redemption logic
+        // 6 Slots for Redemption logic
         uint256 lidoLockedETH;
         uint256 eigenLayerPendingWithdrawalSharesAmount;
         bool isLidoWithdrawal;
         EnumerableSet.UintSet lidoWithdrawals;
         EnumerableSet.Bytes32Set eigenLayerWithdrawals;
+        EnumerableMap.UintToUintMap lidoWithdrawalAmounts;
         // 1 Slot for daily withdrawal limits
         uint96 dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday;

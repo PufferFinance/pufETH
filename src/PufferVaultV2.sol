@@ -9,6 +9,7 @@ import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 /**
  * @title PufferVaultV2
@@ -17,6 +18,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
  */
 contract PufferVaultV2 is PufferVault {
     using SafeERC20 for address;
+    using EnumerableMap for EnumerableMap.UintToUintMap;
 
     /**
      * @dev Thrown if the Vault doesn't have ETH liquidity to transfer to PufferModule
@@ -34,6 +36,12 @@ contract PufferVaultV2 is PufferVault {
      * @dev Signature: 0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d
      */
     event TransferredETH(address indexed to, uint256 amount);
+
+    /**
+     * Emitted when the Vault gets ETH from Lido
+     * @dev Signature: 0xb5cd6ba4df0e50a9991fc91db91ea56e2f134e498a70fc7224ad61d123e5bbb0
+     */
+    event LidoWithdrawal(uint256 expectedWithdrawal, uint256 actualWithdrawal);
 
     /**
      * @dev The Wrapped Ethereum ERC20 token
@@ -59,14 +67,7 @@ contract PufferVaultV2 is PufferVault {
     }
 
     // solhint-disable-next-line no-complex-fallback
-    receive() external payable virtual override {
-        // If we don't use this pattern, somebody can create a Lido withdrawal, claim it to this contract
-        // Making `$.lidoLockedETH -= msg.value` revert
-        VaultStorage storage $ = _getPufferVaultStorage();
-        if ($.isLidoWithdrawal) {
-            $.lidoLockedETH -= msg.value;
-        }
-    }
+    receive() external payable virtual override { }
 
     /**
      * @notice Changes token from stETH to WETH
@@ -219,6 +220,67 @@ contract PufferVaultV2 is PufferVault {
         emit Deposit(_msgSender(), receiver, assets, shares);
 
         return shares;
+    }
+
+    /**
+     * @notice Initiates ETH withdrawals from Lido
+     * Restricted to Operations Multisig
+     * @param amounts An array of amounts that we want to queue
+     */
+    function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
+        external
+        virtual
+        override
+        restricted
+        returns (uint256[] memory requestIds)
+    {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        uint256 lockedAmount;
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            lockedAmount += amounts[i];
+        }
+        $.lidoLockedETH += lockedAmount;
+
+        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
+        requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
+
+        for (uint256 i = 0; i < requestIds.length; ++i) {
+            $.lidoWithdrawalAmounts.set(requestIds[i], amounts[i]);
+        }
+        emit RequestedWithdrawals(requestIds);
+        return requestIds;
+    }
+
+    /**
+     * @notice Claims ETH withdrawals from Lido
+     * Restricted to Operations Multisig
+     * @param requestIds An array of request IDs for the withdrawals
+     */
+    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        // ETH balance before the claim
+        uint256 balanceBefore = address(this).balance;
+
+        uint256 expectedWithdrawal = 0;
+
+        for (uint256 i = 0; i < requestIds.length; ++i) {
+            // .get reverts if requestId is not present
+            expectedWithdrawal += $.lidoWithdrawalAmounts.get(requestIds[i]);
+
+            // slither-disable-next-line calls-loop
+            _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
+        }
+
+        // ETH balance after the claim
+        uint256 balanceAfter = address(this).balance;
+        uint256 actualWithdrawal = balanceAfter - balanceBefore;
+        // Deduct from the locked amount the expected amount
+        $.lidoLockedETH -= expectedWithdrawal;
+
+        emit ClaimedWithdrawals(requestIds);
+        emit LidoWithdrawal(expectedWithdrawal, actualWithdrawal);
     }
 
     /**

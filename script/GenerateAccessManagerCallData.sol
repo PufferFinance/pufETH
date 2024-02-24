@@ -7,7 +7,8 @@ import { Multicall } from "openzeppelin/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "./Roles.sol";
+import { PufferDepositor } from "../src/PufferDepositor.sol";
+import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ADMIN_ROLE, ROLE_ID_OPERATIONS } from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -24,6 +25,25 @@ contract GenerateAccessManagerCallData is Script {
         pure
         returns (bytes memory)
     {
+        bytes[] memory calldatas = new bytes[](6);
+
+        // Combine the two calldatas
+        calldatas[0] = _getPublicSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[1] = _getDaoSelectorsCalldataCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[2] = _getProtocolSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[3] = _getOperationsSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[4] = _removeOutdatedSelectorsCalldata({ pufferDepositorProxy: pufferDepositorProxy });
+        calldatas[5] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
+
+        bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
+
+        // console.log("GenerateAccessManagerCallData:");
+        // console.logBytes(encodedMulticall);
+
+        return encodedMulticall;
+    }
+
+    function _getPublicSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Public selectors for PufferVault
         bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = PufferVaultV2.withdraw.selector;
@@ -32,51 +52,64 @@ contract GenerateAccessManagerCallData is Script {
         publicSelectors[3] = PufferVaultV2.depositStETH.selector;
         // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
 
-        bytes memory publicSelectorsCallData = abi.encodeWithSelector(
+        return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, publicSelectors, PUBLIC_ROLE
         );
+    }
 
-        // PufferDepositor public selectors
-        bytes4[] memory publicSelectorsDepositor = new bytes4[](2);
-        publicSelectorsDepositor[0] = PufferDepositorV2.depositStETH.selector;
-        publicSelectorsDepositor[1] = PufferDepositorV2.depositWstETH.selector;
-
-        bytes memory publicSelectorsCallDataDepositor = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
-        );
-
-        //@todo cleanup of old public selectors on the depositor smart contract
-
+    function _getDaoSelectorsCalldataCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // DAO selectors
         bytes4[] memory daoSelectors = new bytes4[](1);
         daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
 
-        bytes memory daoSelectorsCallData = abi.encodeWithSelector(
+        return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, daoSelectors, ROLE_ID_DAO
         );
+    }
 
+    function _getProtocolSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Puffer Protocol only
         bytes4[] memory protocolSelectors = new bytes4[](2);
         protocolSelectors[0] = PufferVaultV2.transferETH.selector;
         protocolSelectors[1] = PufferVaultV2.burn.selector;
 
-        bytes memory protocolSelectorsCalldata = abi.encodeWithSelector(
+        return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, protocolSelectors, ROLE_ID_PUFFER_PROTOCOL
         );
+    }
 
-        bytes[] memory calldatas = new bytes[](4);
+    function _getOperationsSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
+        // Operations multisig
+        bytes4[] memory operationsSelectors = new bytes4[](2);
+        operationsSelectors[0] = PufferVaultV2.initiateETHWithdrawalsFromLido.selector;
+        operationsSelectors[1] = PufferVaultV2.claimWithdrawalsFromLido.selector;
 
-        // Combine the two calldatas
-        calldatas[0] = publicSelectorsCallData;
-        calldatas[1] = daoSelectorsCallData;
-        calldatas[2] = protocolSelectorsCalldata;
-        calldatas[3] = publicSelectorsCallDataDepositor;
+        return abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, operationsSelectors, ROLE_ID_OPERATIONS
+        );
+    }
 
-        bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
+    function _getPublicSelectorsForDepositor(address pufferDepositorProxy) internal pure returns (bytes memory) {
+        // PufferDepositor public selectors
+        bytes4[] memory publicSelectorsDepositor = new bytes4[](2);
+        publicSelectorsDepositor[0] = PufferDepositorV2.depositStETH.selector;
+        publicSelectorsDepositor[1] = PufferDepositorV2.depositWstETH.selector;
 
-        // console.log("GenerateAccessManagerCallData:");
-        // console.logBytes(encodedMulticall);
+        return abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
+        );
+    }
 
-        return encodedMulticall;
+    function _removeOutdatedSelectorsCalldata(address pufferDepositorProxy) internal pure returns (bytes memory) {
+        // Remove outdated selectors (restrict to admin role only)
+        bytes4[] memory outdatedSelectors = new bytes4[](4);
+        outdatedSelectors[0] = PufferDepositor.swapAndDeposit.selector;
+        outdatedSelectors[1] = PufferDepositor.swapAndDepositWithPermit.selector;
+        outdatedSelectors[2] = PufferDepositor.swapAndDepositWithPermit1Inch.selector;
+        outdatedSelectors[3] = PufferDepositor.swapAndDeposit1Inch.selector;
+
+        return abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, outdatedSelectors, ADMIN_ROLE
+        );
     }
 }
