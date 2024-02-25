@@ -8,19 +8,19 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 interface IPufferOracle {
     /**
-     * @notice Thrown if the new VT mint price is is invalid
+     * @notice Thrown if the new ValidatorTicket mint price is invalid
      */
     error InvalidValidatorTicketPrice();
 
     /**
-     * @notice Emitted when the price to mint VT is updated
+     * @notice Emitted when the price to mint ValidatorTicket is updated
      * @dev Signature "0xf76811fec27423d0853e6bf49d7ea78c666629c2f67e29647d689954021ae0ea"
      */
     event ValidatorTicketMintPriceUpdated(uint256 oldPrice, uint256 newPrice);
 
     /**
-     * @notice Retrieves the current mint price for minting one Validator Ticket
-     * @return pricePerVT The current mint price
+     * @notice Retrieves the current mint price for minting one ValidatorTicket
+     * @return pricePerVT The current ValidatorTicket mint price
      */
     function getValidatorTicketPrice() external view returns (uint256 pricePerVT);
 

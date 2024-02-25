@@ -77,6 +77,68 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0 ether, "everything withdrawn");
     }
 
+    function test_withdrawal_transfers_to_receiver() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+        uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
+
+        // Withdraw with alice as receiver
+        vm.startPrank(pufferWhale);
+        uint256 sharesBurned = pufferVault.withdraw({ assets: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice received 50 wETH
+        assertEq(_WETH.balanceOf(address(alice)), 50 ether, "alice balance");
+
+        // Whale burned shares
+        assertApproxEqAbs(pufferVault.balanceOf(pufferWhale), whaleShares - sharesBurned, 1e9, "asset change");
+    }
+
+    function test_withdrawal_succeeds_with_allowance() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+        uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
+
+        // pufferWhale approves alice to burn their pufETH
+        vm.startPrank(pufferWhale);
+        pufferVault.approve(address(alice), type(uint256).max);
+        vm.stopPrank();
+
+        // Alice tries to withdraw on behalf of pufferWhale
+        vm.startPrank(alice);
+        uint256 sharesBurned = pufferVault.withdraw({ assets: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice should receives 50 wETH
+        assertEq(_WETH.balanceOf(address(alice)), 50 ether, "alice balance");
+
+        // Whale burned shares
+        assertApproxEqAbs(pufferVault.balanceOf(pufferWhale), whaleShares - sharesBurned, 1e9, "asset change");
+    }
+
+    function test_withdrawal_fails_if_owner_is_not_caller() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+
+        // Alice tries to withdraw on behalf of pufferWhale
+        vm.startPrank(alice);
+        vm.expectRevert();
+        pufferVault.withdraw({ assets: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice should not receive
+        assertEq(_WETH.balanceOf(address(alice)), 0 ether, "alice balance");
+    }
+
     function test_withdrawal_fails_when_exceeding_maximum()
         public
         giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether)
@@ -227,13 +289,13 @@ contract PufferVaultV2ForkTest is TestHelper {
         pufferVault.redeem(maxWhaleRedeemableShares, pufferWhale, pufferWhale);
     }
 
-    function test_redeem_succeeds_if_seeded_with_eth() public withCaller(pufferWhale) {
+    // function test_redeem_succeeds_if_seeded_with_eth() public withCaller(pufferWhale) {
+    function test_redeem_succeeds_if_seeded_with_eth() public {
         // mainnet vault start with 0 eth
         assertEq(address(pufferVault).balance, 0 ether, "vault ETH");
 
-        // fill it so there is something to redeem
-        vm.deal(address(pufferVault), 100 ether);
-        assertEq(address(pufferVault).balance, 100 ether, "vault ETH");
+        // Fill vault with withdrawal liquidity
+        _withdraw_stETH_from_lido();
 
         // before state
         uint256 assetsBefore = pufferVault.totalAssets();
@@ -241,8 +303,10 @@ contract PufferVaultV2ForkTest is TestHelper {
         uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
 
         // redeem all of whale's shares
+        vm.startPrank(pufferWhale);
         uint256 maxWhaleRedeemableShares = pufferVault.maxRedeem(pufferWhale);
         uint256 redeemedAssets = pufferVault.redeem(maxWhaleRedeemableShares, pufferWhale, pufferWhale);
+        vm.stopPrank();
 
         // no more to redeem
         assertEq(pufferVault.maxRedeem(pufferWhale), 0, "max redeem");
@@ -255,6 +319,66 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertApproxEqAbs(
             pufferVault.balanceOf(pufferWhale), whaleShares - maxWhaleRedeemableShares, 1e9, "shares change"
         );
+    }
+
+    function test_redeem_transfers_to_receiver() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+        uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
+
+        // Withdraw with alice as receiver
+        vm.startPrank(pufferWhale);
+        uint256 assets = pufferVault.redeem({ shares: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice received 50 wETH
+        assertEq(_WETH.balanceOf(address(alice)), assets, "alice balance");
+
+        // Whale burned shares
+        assertApproxEqAbs(pufferVault.balanceOf(pufferWhale), whaleShares - 50 ether, 1e9, "asset change");
+    }
+
+    function test_redeem_succeeds_with_allowance() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+        uint256 whaleShares = pufferVault.balanceOf(pufferWhale);
+
+        // pufferWhale approves alice to burn their pufETH
+        vm.startPrank(pufferWhale);
+        pufferVault.approve(address(alice), type(uint256).max);
+        vm.stopPrank();
+
+        // Alice tries to withdraw on behalf of pufferWhale
+        vm.startPrank(alice);
+        uint256 assets = pufferVault.redeem({ shares: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice should receives 50 wETH
+        assertEq(_WETH.balanceOf(address(alice)), assets, "alice balance");
+        assertApproxEqAbs(pufferVault.balanceOf(pufferWhale), whaleShares - 50 ether, 1e9, "asset change");
+    }
+
+    function test_redeem_fails_if_owner_is_not_caller() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
+        // Initial state
+        assertEq(_WETH.balanceOf(address(alice)), 0, "alice balance");
+
+        // Alice tries to withdraw on behalf of pufferWhale
+        vm.startPrank(alice);
+        vm.expectRevert();
+        pufferVault.redeem({ shares: 50 ether, receiver: alice, owner: pufferWhale});
+        vm.stopPrank();
+
+        // Alice should not receive
+        assertEq(_WETH.balanceOf(address(alice)), 0 ether, "alice balance");
     }
 
     // mint with WETH
