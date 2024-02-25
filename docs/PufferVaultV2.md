@@ -1,5 +1,6 @@
 # PufferVault
 
+
 | File | Type | Upgradeable | Inherited | Deployed |
 | -------- | -------- | -------- | -------- | -------- |
 | [`IPufferVault.sol`](../src/interface/IPufferVault.sol) | Singleton | / | YES | / |
@@ -16,7 +17,7 @@ This document organizes methods according to the following themes (click each to
 * [Depositing](#depositing)
 * [Withdrawing](#withdrawing)
 * [Redeeming](#redeeming)
-* [Transfering](#transfering)
+* [Transferring](#transferring)
 * [Burning](#burning)
 * [Setter Methods](#setter-methods)
 * [Getter Methods](#getter-methods)
@@ -214,7 +215,7 @@ The function returns one value:
 ---
 
 
-### Transfering
+### Transferring
 
 #### `transferETH`
 
