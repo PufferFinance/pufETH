@@ -318,6 +318,12 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         if (dailyAssetsWithdrawalLimit < assetsWithdrawnToday) {
             return 0;
         }
+
+        // If we are in a new day, return the full daily limit
+        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
+            return dailyAssetsWithdrawalLimit;
+        }
+
         return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
     }
 
@@ -375,7 +381,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
      * Used in {IERC4626-withdraw}.
      */
-    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) internal virtual pure returns (uint256) {
+    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
         return assets.mulDiv(feeBasisPoints, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
@@ -383,7 +389,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Calculates the fee part of an amount `assets` that already includes fees.
      * Used in {IERC4626-redeem}.
      */
-    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) internal virtual pure returns (uint256) {
+    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
         return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
@@ -424,7 +430,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
         $.dailyAssetsWithdrawalLimit = newLimit;
     }
-    
+
     /**
      * @notice Updates the exit fee basis points
      * @dev 200 Basis points = 2% is the maximum exit fee

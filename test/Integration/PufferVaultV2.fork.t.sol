@@ -180,6 +180,27 @@ contract PufferVaultV2ForkTest is TestHelper {
         );
     }
 
+    function test_daily_limit_reset() public {
+        _withdraw_stETH_from_lido();
+
+        vm.startPrank(pufferWhale);
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
+
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
+        pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 50 ether, "daily withdrawal limit reduced");
+
+        vm.warp(block.timestamp + 1 days);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit reduced");
+
+        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
+        pufferVault.withdraw(22 ether, pufferWhale, pufferWhale);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 78 ether, "daily withdrawal limit reduced");
+    }
+
     function test_withdrawal() public {
         // Get withdrawal liquidity
         _withdraw_stETH_from_lido();
