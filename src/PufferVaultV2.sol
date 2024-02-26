@@ -360,7 +360,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
     /**
      * @param newExitFeeBasisPoints is the new exit fee basis points
-     * @dev Because this is very sensitive operation it is restricted to the Admin of AccessManager (Timelock.sol)
+     * @dev Restricted to the DAO
      */
     function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
         _setExitFeeBasisPoints(newExitFeeBasisPoints);
