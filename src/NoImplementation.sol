@@ -10,7 +10,7 @@ contract NoImplementation is UUPSUpgradeable {
         upgrader = msg.sender;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal virtual override {
+    function _authorizeUpgrade(address) internal virtual override {
         // solhint-disable-next-line custom-errors
         require(msg.sender == upgrader, "Unauthorized");
         // anybody can steal this proxy

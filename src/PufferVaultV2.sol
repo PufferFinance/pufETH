@@ -7,41 +7,23 @@ import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol"
 import { IEigenLayer } from "./interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
+import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title PufferVaultV2
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufferVaultV2 is PufferVault {
+contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     using SafeERC20 for address;
     using EnumerableMap for EnumerableMap.UintToUintMap;
+    using Math for uint256;
 
-    /**
-     * @dev Thrown if the Vault doesn't have ETH liquidity to transfer to PufferModule
-     */
-    error ETHTransferFailed();
-
-    /**
-     * Emitted when the daily withdrawal limit is set
-     * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
-     */
-    event DailyWithdrawalLimitSet(uint96 oldLimit, uint96 newLimit);
-
-    /**
-     * Emitted when the Vault transfers ETH to a specified address
-     * @dev Signature: 0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d
-     */
-    event TransferredETH(address indexed to, uint256 amount);
-
-    /**
-     * Emitted when the Vault gets ETH from Lido
-     * @dev Signature: 0xb5cd6ba4df0e50a9991fc91db91ea56e2f134e498a70fc7224ad61d123e5bbb0
-     */
-    event LidoWithdrawal(uint256 expectedWithdrawal, uint256 actualWithdrawal);
+    uint256 private constant _BASIS_POINT_SCALE = 1e4;
 
     /**
      * @dev The Wrapped Ethereum ERC20 token
@@ -78,11 +60,12 @@ contract PufferVaultV2 is PufferVault {
         erc4626Storage._asset = _WETH;
         _setDailyWithdrawalLimit(100 ether);
         _updateDailyWithdrawals(0);
+        _setExitFeeBasisPoints(100); // 1%
     }
 
     /**
      * @dev See {IERC4626-totalAssets}.
-     * pufETH, the shares of the vault, will be backed primarily by the WETH asset. 
+     * pufETH, the shares of the vault, will be backed primarily by the WETH asset.
      * However, at any point in time, the full backings may be a combination of stETH, WETH, and ETH.
      * `totalAssets()` is calculated by summing the following:
      * - WETH held in the vault contract
@@ -132,7 +115,32 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Withdrawals WETH assets from the vault, burning the `owner`'s (pufETH) shares. 
+     * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
+     *
+     */
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
+        uint256 fee = _feeOnRaw(assets, getExitFeeBasisPoints());
+        return super.previewWithdraw(assets + fee);
+    }
+
+    /**
+     * @dev Preview taking an exit fee on redeem. See {IERC4626-previewRedeem}.
+     */
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
+        uint256 assets = super.previewRedeem(shares);
+        return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
+    }
+
+    /**
+     * @return The current exit fee basis points
+     */
+    function getExitFeeBasisPoints() public view virtual returns (uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.exitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Withdrawals WETH assets from the vault, burning the `owner`'s (pufETH) shares.
      * The caller of this function does not have to be the `owner` if the `owner` has approved the caller to spend their pufETH.
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
@@ -165,7 +173,7 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
-     * @notice Redeems (pufETH) `shares` to receive (WETH) assets from the vault, burning the `owner`'s (pufETH) `shares`. 
+     * @notice Redeems (pufETH) `shares` to receive (WETH) assets from the vault, burning the `owner`'s (pufETH) `shares`.
      * The caller of this function does not have to be the `owner` if the `owner` has approved the caller to spend their pufETH.
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * Copied the original ERC4626 code back to override `PufferVault` + wrap ETH logic
@@ -319,6 +327,8 @@ contract PufferVaultV2 is PufferVault {
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
+        // .transfer(to) 2300
+
         // slither-disable-next-line arbitrary-send-eth
         (bool success,) = to.call{ value: ethAmount }("");
 
@@ -349,6 +359,14 @@ contract PufferVaultV2 is PufferVault {
     }
 
     /**
+     * @param newExitFeeBasisPoints is the new exit fee basis points
+     * @dev Because this is very sensitive operation it is restricted to the Admin of AccessManager (Timelock.sol)
+     */
+    function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
+        _setExitFeeBasisPoints(newExitFeeBasisPoints);
+    }
+
+    /**
      * @notice Returns the remaining assets that can be withdrawn today
      * @return The remaining assets that can be withdrawn today
      */
@@ -361,6 +379,22 @@ contract PufferVaultV2 is PufferVault {
             return 0;
         }
         return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
+    }
+
+    /**
+     * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
+     * Used in {IERC4626-mint} and {IERC4626-withdraw} operations.
+     */
+    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+        return assets.mulDiv(feeBasisPoints, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
+    }
+
+    /**
+     * @dev Calculates the fee part of an amount `assets` that already includes fees.
+     * Used in {IERC4626-deposit} and {IERC4626-redeem} operations.
+     */
+    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+        return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
     /**
@@ -399,6 +433,16 @@ contract PufferVaultV2 is PufferVault {
         VaultStorage storage $ = _getPufferVaultStorage();
         emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
         $.dailyAssetsWithdrawalLimit = newLimit;
+    }
+
+    function _setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // 2% is the maximum exit fee
+        if (newExitFeeBasisPoints > 200) {
+            revert InvalidExitFeeBasisPoints();
+        }
+        emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
+        $.exitFeeBasisPoints = newExitFeeBasisPoints;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

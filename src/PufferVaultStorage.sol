@@ -30,6 +30,8 @@ abstract contract PufferVaultStorage {
         uint96 dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday;
         uint64 lastWithdrawalDay;
+        // 1 slot for withdrawal fee
+        uint256 exitFeeBasisPoints;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.storage")) - 1)) & ~bytes32(uint256(0xff))

@@ -22,6 +22,38 @@ contract PufferVaultV2Property is ERC4626Test {
     IStETH public stETH;
     WETH9 public weth;
 
+    // Override the minting of shares and assets (limit to uin64.max)
+    function setUpVault(Init memory init) public virtual override {
+        // setup initial shares and assets for individual users
+        for (uint256 i = 0; i < N; i++) {
+            address user = init.user[i];
+            vm.assume(_isEOA(user));
+            // shares
+            uint256 shares = init.share[i];
+            vm.assume(shares < type(uint64).max);
+            try IMockERC20(_underlying_).mint(user, shares) { }
+            catch {
+                vm.assume(false);
+            }
+            _approve(_underlying_, user, _vault_, shares);
+            vm.prank(user);
+            try IERC4626(_vault_).deposit(shares, user) { }
+            catch {
+                vm.assume(false);
+            }
+            // assets
+            uint256 assets = init.asset[i];
+            vm.assume(assets < type(uint64).max);
+            try IMockERC20(_underlying_).mint(user, assets) { }
+            catch {
+                vm.assume(false);
+            }
+        }
+
+        // setup initial yield for vault
+        setUpYield(init);
+    }
+
     function setUp() public override {
         PufferDeployment memory deployment = new DeployPufETH().run();
 
@@ -41,7 +73,7 @@ contract PufferVaultV2Property is ERC4626Test {
 
         // Setup access for public
         bytes memory encodedMulticall =
-            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor), address(5));
+            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
 
         vm.prank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
         (bool s,) = address(accessManager).call(encodedMulticall);

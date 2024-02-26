@@ -228,9 +228,8 @@ contract PufferTest is Test {
         );
 
         // Setup access
-        address mockProtocol = makeAddr("mockProtocol");
         bytes memory encodedMulticall =
-            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor), mockProtocol);
+            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
         // Timelock is the owner of the AccessManager
         timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
 
@@ -383,7 +382,7 @@ contract PufferTest is Test {
         assertEq(minted, 0, "got 0 back");
     }
 
-    function test_upgrade_to_mainnet() public giveToken(MAKER_VAULT, address(_WETH), eve, 100 ether) {
+    function test_upgrade_to_mainnet() public giveToken(MAKER_VAULT, address(_WETH), eve, 10 ether) {
         // Test pre-mainnet version
         test_minting_and_lido_rebasing();
 
@@ -395,18 +394,36 @@ contract PufferTest is Test {
         vm.startPrank(eve);
         SafeERC20.safeIncreaseAllowance(_WETH, address(pufferVault), type(uint256).max);
 
-        uint256 wethBeforeEve = _WETH.balanceOf(eve);
+        uint256 pufETHMinted = pufferVault.deposit(10 ether, eve);
 
-        uint256 pufETHMinted = pufferVault.deposit(100 ether, eve);
+        assertEq(pufferVault.totalAssets(), assetsBefore + 10 ether, "Previous assets should increase");
 
-        assertEq(pufferVault.totalAssets(), assetsBefore + 100 ether, "Previous assets should increase");
+        PufferVaultV2(payable(address(pufferVault))).getRemainingAssetsDailyWithdrawalLimit();
 
-        pufferVault.withdraw(pufETHMinted, eve, eve);
+        pufferVault.balanceOf(eve);
+        uint256 maxWithdraw = pufferVault.maxWithdraw(eve);
 
-        // 0.01% is the max delta because of the rounding
-        // Real delta is 0.009900175912953700 %
-        assertApproxEqRel(_WETH.balanceOf(eve), wethBeforeEve, 0.0001e18, "eve weth after withdrawal");
-        assertApproxEqRel(pufferVault.totalAssets(), assetsBefore, 0.0001e18, "should have the same amount");
+        uint256 assetsValue = pufferVault.convertToAssets(pufETHMinted);
+        assertApproxEqAbs(assetsValue, 10 ether, 1, "convertToAssets matches the original deposited amount");
+
+        // IERC4626 natspec says:
+        /// NOTE: any unfavorable discrepancy between convertToAssets and previewRedeem SHOULD be considered slippage in
+        /// share price or some other type of condition, meaning the depositor will lose assets by redeeming.
+
+        assertLt(maxWithdraw, pufETHMinted, "max withdraw should is smaller because of the withdrawal fee");
+
+        pufferVault.withdraw(maxWithdraw, eve, eve);
+
+        // Alice got less than she deposited ~ -1% less
+        assertEq(_WETH.balanceOf(eve), 9.900990099009900989 ether, "eve weth after withdrawal");
+
+        // Deposited 10 ETH, got back ~9.9 ETH
+        uint256 assetsDif = 10 ether - _WETH.balanceOf(eve);
+
+        // The rest stays in the vault
+        assertEq(
+            pufferVault.totalAssets(), assetsBefore + assetsDif, "should have a little more because alice got 1% less"
+        );
     }
 
     function test_minting_and_lido_rebasing()

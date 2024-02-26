@@ -20,11 +20,7 @@ import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ADMIN_ROLE, ROLE_ID_
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCallData is Script {
-    function run(address pufferVaultProxy, address pufferDepositorProxy, address pufferProtocolProxy)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function run(address pufferVaultProxy, address pufferDepositorProxy) public pure returns (bytes memory) {
         bytes[] memory calldatas = new bytes[](6);
 
         // Combine the two calldatas
@@ -69,6 +65,7 @@ contract GenerateAccessManagerCallData is Script {
 
     function _getProtocolSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Puffer Protocol only
+        // PufferProtocol will get `ROLE_ID_PUFFER_PROTOCOL` when it's deployed
         bytes4[] memory protocolSelectors = new bytes4[](2);
         protocolSelectors[0] = PufferVaultV2.transferETH.selector;
         protocolSelectors[1] = PufferVaultV2.burn.selector;
