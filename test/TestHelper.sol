@@ -194,7 +194,7 @@ contract TestHelper is Test {
         // Setup access
 
         bytes memory encodedMulticall =
-            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor), mockPufferProtocol);
+            new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
         // Timelock is the owner of the AccessManager
         timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
 

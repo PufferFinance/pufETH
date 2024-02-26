@@ -29,7 +29,7 @@ contract MockPufferOracle is IPufferOracleV2 {
         uint56 blockNumber,
         uint24 numberOfActivePufferValidators,
         uint24 totalNumberOfValidators,
-        bytes[] calldata guardianSignatures
+        bytes[] calldata
     ) external {
         if ((block.number - lastUpdate) < _UPDATE_INTERVAL) {
             revert OutsideUpdateWindow();

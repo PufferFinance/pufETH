@@ -38,7 +38,7 @@ interface IPufferOracleV2 is IPufferOracle {
     function getLastUpdate() external view returns (uint256);
 
     /**
-     * @notice Increases the `_lockedETH` variable on the PufferOracle by 32 ETH to account for a new deposit. 
+     * @notice Increases the `_lockedETH` variable on the PufferOracle by 32 ETH to account for a new deposit.
      * It is called when the Beacon chain receives a new deposit from the PufferProtocol.
      * The PufferVault's balance will simultaneously decrease by 32 ETH as the deposit is made.
      * The purpose is to keep the PufferVault totalAssets amount in sync between proof-of-reserves updates.

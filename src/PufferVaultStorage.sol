@@ -22,14 +22,16 @@ abstract contract PufferVaultStorage {
         // 6 Slots for Redemption logic
         uint256 lidoLockedETH;
         uint256 eigenLayerPendingWithdrawalSharesAmount;
-        bool isLidoWithdrawal;
-        EnumerableSet.UintSet lidoWithdrawals;
+        bool isLidoWithdrawal; // Not in use in PufferVaultV2
+        EnumerableSet.UintSet lidoWithdrawals; // Not in use in PufferVaultV2
         EnumerableSet.Bytes32Set eigenLayerWithdrawals;
         EnumerableMap.UintToUintMap lidoWithdrawalAmounts;
         // 1 Slot for daily withdrawal limits
         uint96 dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday;
         uint64 lastWithdrawalDay;
+        // 1 slot for withdrawal fee
+        uint256 exitFeeBasisPoints;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.storage")) - 1)) & ~bytes32(uint256(0xff))
