@@ -161,7 +161,7 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(expectedAssetsOut, assetsOut, "must match");
         assertEq(assetsOut, 10 ether, "must match eth");
 
-        // The exchange rate changes sightly after the first withdrawal, because of the withdrawal fee
+        // The exchange rate changes slightly after the first withdrawal, because of the withdrawal fee
         // The same amount of
         uint256 expectedAssets = pufferVault.previewRedeem(expectedSharesWithdrawn);
 
