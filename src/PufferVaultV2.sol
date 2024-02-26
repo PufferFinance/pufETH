@@ -48,11 +48,10 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         _disableInitializers();
     }
 
-    // solhint-disable-next-line no-complex-fallback
     receive() external payable virtual override { }
 
     /**
-     * @notice Changes token from stETH to WETH
+     * @notice Changes underlying asset from stETH to WETH
      */
     function initialize() public reinitializer(2) {
         // In this initialization, we swap out the underlying stETH with WETH
@@ -91,55 +90,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Calculates the maximum amount of assets (WETH) that can be withdrawn by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
-     * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
-     * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
-     */
-    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
-        uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
-        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
-        return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
-    }
-
-    /**
-     * @notice Calculates the maximum amount of shares (pufETH) that can be redeemed by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
-     * @param owner The address of the owner for which the maximum redeemable shares are calculated.
-     * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
-     */
-    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
-        uint256 remainingShares = previewWithdraw(getRemainingAssetsDailyWithdrawalLimit());
-        uint256 userShares = balanceOf(owner);
-        return remainingShares < userShares ? remainingShares : userShares;
-    }
-
-    /**
-     * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
-     *
-     */
-    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
-        uint256 fee = _feeOnRaw(assets, getExitFeeBasisPoints());
-        return super.previewWithdraw(assets + fee);
-    }
-
-    /**
-     * @dev Preview taking an exit fee on redeem. See {IERC4626-previewRedeem}.
-     */
-    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
-        uint256 assets = super.previewRedeem(shares);
-        return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
-    }
-
-    /**
-     * @return The current exit fee basis points
-     */
-    function getExitFeeBasisPoints() public view virtual returns (uint256) {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        return $.exitFeeBasisPoints;
-    }
-
-    /**
      * @notice Withdrawals WETH assets from the vault, burning the `owner`'s (pufETH) shares.
      * The caller of this function does not have to be the `owner` if the `owner` has approved the caller to spend their pufETH.
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
@@ -166,8 +116,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         _wrapETH(assets);
 
         uint256 shares = previewWithdraw(assets);
-        // solhint-disable-next-line func-named-parameters
-        _withdraw(_msgSender(), receiver, owner, assets, shares);
+        _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
 
         return shares;
     }
@@ -200,17 +149,14 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
         _wrapETH(assets);
 
-        // solhint-disable-next-line func-named-parameters
-        _withdraw(_msgSender(), receiver, owner, assets, shares);
+        _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
 
         return assets;
     }
 
     /**
-     * @notice Deposits native ETH into the Puffer Vault
+     * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     * @param receiver The recipient of pufETH tokens
-     * @return shares The amount of pufETH received from the deposit
      */
     function depositETH(address receiver) public payable virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
@@ -226,11 +172,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Deposits stETH into the Puffer Vault
+     * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     * @param assets The amount of stETH to deposit
-     * @param receiver The recipient of pufETH tokens
-     * @return shares The amount of pufETH received from the deposit
      */
     function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
@@ -365,10 +308,9 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Returns the remaining assets that can be withdrawn today
-     * @return The remaining assets that can be withdrawn today
+     * @inheritdoc IPufferVaultV2
      */
-    function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint96) {
+    function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
@@ -380,18 +322,68 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
-     * Used in {IERC4626-mint} and {IERC4626-withdraw} operations.
+     * @notice Calculates the maximum amount of assets (WETH) that can be withdrawn by the `owner`.
+     * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
+     * See {IERC4626-maxWithdraw}
+     * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
+     * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
      */
-    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
+        uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
+        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
+        return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
+    }
+
+    /**
+     * @notice Calculates the maximum amount of shares (pufETH) that can be redeemed by the `owner`.
+     * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
+     * See {IERC4626-maxRedeem}
+     * @param owner The address of the owner for which the maximum redeemable shares are calculated.
+     * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
+     */
+    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
+        uint256 remainingShares = previewWithdraw(getRemainingAssetsDailyWithdrawalLimit());
+        uint256 userShares = balanceOf(owner);
+        return remainingShares < userShares ? remainingShares : userShares;
+    }
+
+    /**
+     * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
+     */
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
+        uint256 fee = _feeOnRaw(assets, getExitFeeBasisPoints());
+        return super.previewWithdraw(assets + fee);
+    }
+
+    /**
+     * @dev Preview taking an exit fee on redeem. See {IERC4626-previewRedeem}.
+     */
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
+        uint256 assets = super.previewRedeem(shares);
+        return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
+    }
+
+    /**
+     * @inheritdoc IPufferVaultV2
+     */
+    function getExitFeeBasisPoints() public view virtual returns (uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.exitFeeBasisPoints;
+    }
+
+    /**
+     * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
+     * Used in {IERC4626-withdraw}.
+     */
+    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) internal virtual pure returns (uint256) {
         return assets.mulDiv(feeBasisPoints, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
     /**
      * @dev Calculates the fee part of an amount `assets` that already includes fees.
-     * Used in {IERC4626-deposit} and {IERC4626-redeem} operations.
+     * Used in {IERC4626-redeem}.
      */
-    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) internal virtual pure returns (uint256) {
         return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
@@ -399,7 +391,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @notice Wraps the vault's ETH balance to WETH.
      * @dev Used to provide WETH liquidity
      */
-    function _wrapETH(uint256 assets) internal {
+    function _wrapETH(uint256 assets) internal virtual {
         uint256 wethBalance = _WETH.balanceOf(address(this));
 
         if (wethBalance < assets) {
@@ -411,7 +403,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @notice Updates the amount of assets (WETH) withdrawn today
      * @param withdrawalAmount is the assets (WETH) amount
      */
-    function _updateDailyWithdrawals(uint256 withdrawalAmount) internal {
+    function _updateDailyWithdrawals(uint256 withdrawalAmount) internal virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         // Check if it's a new day to reset the withdrawal count
@@ -427,13 +419,17 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @notice Updates the maximum amount of assets (WETH) that can be withdrawn daily
      * @param newLimit is the assets (WETH) amount
      */
-    function _setDailyWithdrawalLimit(uint96 newLimit) internal {
+    function _setDailyWithdrawalLimit(uint96 newLimit) internal virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
         emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
         $.dailyAssetsWithdrawalLimit = newLimit;
     }
-
-    function _setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) internal {
+    
+    /**
+     * @notice Updates the exit fee basis points
+     * @dev 200 Basis points = 2% is the maximum exit fee
+     */
+    function _setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) internal virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
         // 2% is the maximum exit fee
         if (newExitFeeBasisPoints > 200) {
@@ -445,7 +441,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 
-    function _getERC4626StorageInternal() internal pure returns (ERC4626Storage storage $) {
+    function _getERC4626StorageInternal() private pure returns (ERC4626Storage storage $) {
         // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ERC4626")) - 1)) & ~bytes32(uint256(0xff))
         // solhint-disable-next-line no-inline-assembly
         assembly {

@@ -42,4 +42,30 @@ interface IPufferVaultV2 is IPufferVault {
      * @dev Signature: 0xb5cd6ba4df0e50a9991fc91db91ea56e2f134e498a70fc7224ad61d123e5bbb0
      */
     event LidoWithdrawal(uint256 expectedWithdrawal, uint256 actualWithdrawal);
+
+    /**
+     * @notice Returns the current exit fee basis points
+     */
+    function getExitFeeBasisPoints() external view returns (uint256);
+
+    /**
+     * @notice Returns the remaining assets that can be withdrawn today
+     * @return The remaining assets that can be withdrawn today
+     */
+    function getRemainingAssetsDailyWithdrawalLimit() external view returns (uint256);
+
+    /**
+     * @notice Deposits native ETH into the Puffer Vault
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
+     */
+    function depositETH(address receiver) external payable returns (uint256);
+
+    /**
+     * @notice Deposits stETH into the Puffer Vault
+     * @param assets The amount of stETH to deposit
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
+     */
+    function depositStETH(uint256 assets, address receiver) external returns (uint256);
 }
