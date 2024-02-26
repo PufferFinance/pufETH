@@ -327,8 +327,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
-        // .transfer(to) 2300
-
         // slither-disable-next-line arbitrary-send-eth
         (bool success,) = to.call{ value: ethAmount }("");
 
