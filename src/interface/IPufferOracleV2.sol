@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferOracle } from "./IPufferOracle.sol";
+import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title IPufferOracle
@@ -10,11 +11,11 @@ import { IPufferOracle } from "./IPufferOracle.sol";
  */
 interface IPufferOracleV2 is IPufferOracle {
     /**
-     * @notice Thrown if proof-of-reserves is submitted outside of the acceptable window
-     * @dev Signature "0xf93417f7"
+     * @notice Thrown if length of the modules and the amounts are not equal
+     * @dev Signature "0x3e50a94a"
      */
-    error OutsideUpdateWindow();
-
+    error InvalidOracleUpdate();
+    
     /**
      * @notice Emitted when the proof-of-reserves updates the PufferVault's state
      * @dev Signature "0xaabc7a8108435a4fc30d1e2cecd59cbdec96ee6fa583c6eebf9a20bc9d14d3ed"
