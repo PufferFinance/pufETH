@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferOracle } from "./IPufferOracle.sol";
-import { Reserves } from "puffer/struct/Reserves.sol";
 
 /**
  * @title IPufferOracle
