@@ -14,7 +14,7 @@ interface IPufferOracleV2 is IPufferOracle {
      * @dev Signature "0x3e50a94a"
      */
     error InvalidOracleUpdate();
-    
+
     /**
      * @notice Emitted when the proof-of-reserves updates the PufferVault's state
      * @dev Signature "0xaabc7a8108435a4fc30d1e2cecd59cbdec96ee6fa583c6eebf9a20bc9d14d3ed"
