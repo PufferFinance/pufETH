@@ -10,10 +10,10 @@ import { IPufferOracle } from "./IPufferOracle.sol";
  */
 interface IPufferOracleV2 is IPufferOracle {
     /**
-     * @notice Thrown if proof-of-reserves is submitted outside of the acceptable window
-     * @dev Signature "0xf93417f7"
+     * @notice Thrown if length of the modules and the amounts are not equal
+     * @dev Signature "0x3e50a94a"
      */
-    error OutsideUpdateWindow();
+    error InvalidOracleUpdate();
 
     /**
      * @notice Emitted when the proof-of-reserves updates the PufferVault's state

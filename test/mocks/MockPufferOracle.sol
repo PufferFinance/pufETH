@@ -31,10 +31,6 @@ contract MockPufferOracle is IPufferOracleV2 {
         uint24 totalNumberOfValidators,
         bytes[] calldata
     ) external {
-        if ((block.number - lastUpdate) < _UPDATE_INTERVAL) {
-            revert OutsideUpdateWindow();
-        }
-
         lockedETH = newLockedETH;
         lastUpdate = blockNumber;
         numberOfActiveValidators = numberOfActivePufferValidators;

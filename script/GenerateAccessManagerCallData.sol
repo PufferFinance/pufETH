@@ -8,7 +8,7 @@ import { console } from "forge-std/console.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ADMIN_ROLE, ROLE_ID_OPERATIONS } from "./Roles.sol";
+import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS } from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -21,15 +21,14 @@ import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ADMIN_ROLE, ROLE_ID_
  */
 contract GenerateAccessManagerCallData is Script {
     function run(address pufferVaultProxy, address pufferDepositorProxy) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](6);
+        bytes[] memory calldatas = new bytes[](5);
 
         // Combine the two calldatas
         calldatas[0] = _getPublicSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
         calldatas[1] = _getDaoSelectorsCalldataCalldata({ pufferVaultProxy: pufferVaultProxy });
         calldatas[2] = _getProtocolSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
         calldatas[3] = _getOperationsSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
-        calldatas[4] = _removeOutdatedSelectorsCalldata({ pufferDepositorProxy: pufferDepositorProxy });
-        calldatas[5] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
+        calldatas[4] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
@@ -94,19 +93,6 @@ contract GenerateAccessManagerCallData is Script {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
-        );
-    }
-
-    function _removeOutdatedSelectorsCalldata(address pufferDepositorProxy) internal pure returns (bytes memory) {
-        // Remove outdated selectors (restrict to admin role only)
-        bytes4[] memory outdatedSelectors = new bytes4[](4);
-        outdatedSelectors[0] = PufferDepositor.swapAndDeposit.selector;
-        outdatedSelectors[1] = PufferDepositor.swapAndDepositWithPermit.selector;
-        outdatedSelectors[2] = PufferDepositor.swapAndDepositWithPermit1Inch.selector;
-        outdatedSelectors[3] = PufferDepositor.swapAndDeposit1Inch.selector;
-
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, outdatedSelectors, ADMIN_ROLE
         );
     }
 }
