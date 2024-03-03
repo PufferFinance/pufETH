@@ -17,7 +17,7 @@ interface IWstETH {
 
     /**
      * @notice Exchanges wstETH to stETH
-     * @param _wstETHAmount amount of wstETH to uwrap in exchange for stETH
+     * @param _wstETHAmount amount of wstETH to unwrap in exchange for stETH
      * @dev Requirements:
      *  - `_wstETHAmount` must be non-zero
      *  - msg.sender must have at least `_wstETHAmount` wstETH.
