@@ -12,3 +12,6 @@
 [submodule "lib/erc4626-tests"]
 	path = lib/erc4626-tests
 	url = https://github.com/a16z/erc4626-tests
+[submodule "lib/properties"]
+	path = lib/properties
+	url = https://github.com/crytic/properties
