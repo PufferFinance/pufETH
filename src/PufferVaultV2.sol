@@ -294,7 +294,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @notice Returns the amount of shares (pufETH) for the `assets` amount rounded up
      * @param assets The amount of assets
      */
-    function convertToSharesUp(uint256 assets) public view returns(uint256) {
+    function convertToSharesUp(uint256 assets) public view returns (uint256) {
         return _convertToShares(assets, Math.Rounding.Ceil);
     }
 
