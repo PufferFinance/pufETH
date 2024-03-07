@@ -10,22 +10,10 @@ import { IPufferOracle } from "./IPufferOracle.sol";
  */
 interface IPufferOracleV2 is IPufferOracle {
     /**
-     * @notice Thrown if length of the modules and the amounts are not equal
-     * @dev Signature "0x3e50a94a"
+     * @notice Emitted when the number of active Puffer validators is updated
+     * @param numberOfActivePufferValidators is the number of active Puffer validators
      */
-    error InvalidOracleUpdate();
-
-    /**
-     * @notice Emitted when the proof-of-reserves updates the PufferVault's state
-     * @dev Signature "0xaabc7a8108435a4fc30d1e2cecd59cbdec96ee6fa583c6eebf9a20bc9d14d3ed"
-     * @param blockNumber is the block number of the proof-of-reserves update
-     * @param lockedETH is the validator ETH locked in the Beacon chain
-     * @param numberOfActivePufferValidators is the number of active Puffer validators, used in enforcing the burst threshold
-     * @param totalNumberOfValidators is the total number of active validators on Ethereum, used in enforcing the burst threshold
-     */
-    event ReservesUpdated(
-        uint256 blockNumber, uint256 lockedETH, uint256 numberOfActivePufferValidators, uint256 totalNumberOfValidators
-    );
+    event NumberOfActiveValidators(uint256 numberOfActivePufferValidators);
 
     /**
      * @notice Returns the total number of active validators on Ethereum
@@ -33,15 +21,18 @@ interface IPufferOracleV2 is IPufferOracle {
     function getTotalNumberOfValidators() external view returns (uint256);
 
     /**
-     * @notice Returns the block number of the last proof-of-reserves update
+     * @notice Exits the validator, decreasing the `lockedETHAmount` by 32 ETH.
+     * It is called when when the Node Operator triggers the `retrieveBond` on the PufferProtocol.
+     * In the same transaction, we are transferring full withdrawal ETH from the PufferModule to the Vault
+     * Decrementing the `lockedETHAmount` by 32 ETH and we burn the Node Operator's pufETH (bond) if we need to cover up the loss.
+     * @dev Restricted to PufferProtocol contract
      */
-    function getLastUpdate() external view returns (uint256);
+    function exitValidator() external;
 
     /**
-     * @notice Increases the `_lockedETH` variable on the PufferOracle by 32 ETH to account for a new deposit.
+     * @notice Increases the `lockedETHAmount` on the PufferOracle by 32 ETH to account for a new deposit.
      * It is called when the Beacon chain receives a new deposit from the PufferProtocol.
      * The PufferVault's balance will simultaneously decrease by 32 ETH as the deposit is made.
-     * The purpose is to keep the PufferVault totalAssets amount in sync between proof-of-reserves updates.
      * @dev Restricted to PufferProtocol contract
      */
     function provisionNode() external;
