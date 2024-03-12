@@ -14,6 +14,7 @@ interface IPufferOracleV2 is IPufferOracle {
      * @notice Emitted when the number of active Puffer validators is updated
      * @param numberOfActivePufferValidators is the number of active Puffer validators
      */
+
     event NumberOfActiveValidators(uint256 numberOfActivePufferValidators);
 
     /**
@@ -21,7 +22,9 @@ interface IPufferOracleV2 is IPufferOracle {
      * @param oldNumberOfValidators is the old number of validators
      * @param newNumberOfValidators is the new number of validators
      */
-    event TotalNumberOfValidatorsUpdated(uint256 oldNumberOfValidators, uint256 newNumberOfValidators, uint256 epochNumber);
+    event TotalNumberOfValidatorsUpdated(
+        uint256 oldNumberOfValidators, uint256 newNumberOfValidators, uint256 epochNumber
+    );
 
     /**
      * @notice Returns the total number of active validators on Ethereum
