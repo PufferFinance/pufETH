@@ -417,8 +417,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
             $.assetsWithdrawnToday = 0;
         }
-
         $.assetsWithdrawnToday += uint96(withdrawalAmount);
+        emit AssetsWithdrawnToday($.assetsWithdrawnToday);
     }
 
     /**
