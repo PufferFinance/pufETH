@@ -63,9 +63,9 @@ interface IPufferVaultV2 is IPufferVault {
 
     /**
      * @notice Deposits stETH into the Puffer Vault
-     * @param assets The amount of stETH to deposit
+     * @param stETHSharesAmount The shares amount of stETH to deposit
      * @param receiver The recipient of pufETH tokens
      * @return shares The amount of pufETH received from the deposit
      */
-    function depositStETH(uint256 assets, address receiver) external returns (uint256);
+    function depositStETH(uint256 stETHSharesAmount, address receiver) external returns (uint256);
 }

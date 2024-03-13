@@ -18,6 +18,10 @@ interface IStETH is IERC20 {
 
     function transferShares(address _recipient, uint256 _sharesAmount) external returns (uint256);
 
+    function transferSharesFrom(address _sender, address _recipient, uint256 _sharesAmount)
+        external
+        returns (uint256);
+
     /**
      * @return the amount of tokens in existence.
      *

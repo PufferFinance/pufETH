@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { TestHelper } from "../TestHelper.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 
@@ -309,10 +308,7 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore + estimatedShares, 1e9, "shares change");
     }
 
-    function test_deposit_fails_when_not_enough_funds()
-        public
-        giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether)
-    {
+    function test_deposit_fails_when_not_enough_funds() public {
         vm.expectRevert();
         pufferVault.deposit(100 ether + 1, alice);
 
@@ -554,12 +550,14 @@ contract PufferVaultV2ForkTest is TestHelper {
         stETH.approve(address(pufferVault), type(uint256).max);
         vm.deal(alice, 100 ether);
 
+        uint256 stETHSharesAmount = _ST_ETH.getSharesByPooledEth(depositAmount);
+
         uint256 wethShares = pufferVault.deposit(depositAmount, alice);
-        uint256 stETHShares = pufferVault.depositStETH(depositAmount, alice);
+        uint256 stETHShares = pufferVault.depositStETH(stETHSharesAmount, alice);
         uint256 ethShares = pufferVault.depositETH{ value: depositAmount }(alice);
 
-        assertEq(wethShares, stETHShares, "weth steth shares");
-        assertEq(stETHShares, ethShares, "eth steth shares");
+        assertApproxEqAbs(wethShares, stETHShares, 1, "weth steth shares");
+        assertApproxEqAbs(stETHShares, ethShares, 1, "eth steth shares");
 
         assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore + 3 * depositAmount, 1e9, "asset change");
         assertApproxEqAbs(

@@ -175,16 +175,19 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
+    function depositStETH(uint256 stETHSharesAmount, address receiver) public virtual restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
+
+        // Get the amount of assets (stETH) that corresponds to `stETHSharesAmount` so that we can use it in our calculation
+        uint256 assets = _ST_ETH.getPooledEthByShares(stETHSharesAmount);
+
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
         }
 
         uint256 shares = previewDeposit(assets);
-
-        // slither-disable-next-line reentrancy-no-eth
-        SafeERC20.safeTransferFrom(_ST_ETH, _msgSender(), address(this), assets);
+        // Transfer the exact number of stETH shares from the user to the vault
+        _ST_ETH.transferSharesFrom({ _sender: msg.sender, _recipient: address(this), _sharesAmount: stETHSharesAmount });
         _mint(receiver, shares);
 
         emit Deposit(_msgSender(), receiver, assets, shares);
