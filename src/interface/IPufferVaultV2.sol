@@ -31,6 +31,12 @@ interface IPufferVaultV2 is IPufferVault {
     event AssetsWithdrawnToday(uint256 withdrawalAmount);
 
     /**
+     * Emitted daily withdrawal limit is reset
+     * @dev Signature: 0x190567136e3dd93d29bef98a7c7c87cff34ee88e71d634b52f5fb3b531085f40
+     */
+    event DailyWithdrawalLimitReset();
+
+    /**
      * Emitted when the daily withdrawal limit is set
      * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
      */

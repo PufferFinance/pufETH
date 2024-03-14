@@ -120,18 +120,28 @@ contract PufferVaultV2ForkTest is TestHelper {
     }
 
     function test_setDailyWithdrawalLimit() public {
+        // Get withdrawal liquidity
+        _withdraw_stETH_from_lido();
+
         address dao = makeAddr("dao");
 
         // Grant DAO role to 'dao' address
-        vm.prank(address(timelock));
+        vm.startPrank(address(timelock));
         accessManager.grantRole(ROLE_ID_DAO, dao, 0);
 
         // Whale has more than 100 ether, but the limit is 100 eth
         assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
 
+        vm.startPrank(pufferWhale);
+        pufferVault.withdraw(pufferVault.maxWithdraw(pufferWhale), pufferWhale, pufferWhale);
+
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0, "remaining assets daily withdrawal limit");
+
         // Set the new limit
         uint96 newLimit = 1000 ether;
-        vm.prank(dao);
+        vm.startPrank(dao);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferVaultV2.DailyWithdrawalLimitReset();
         pufferVault.setDailyWithdrawalLimit(newLimit);
 
         assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), newLimit, "daily withdrawal limit");
@@ -375,8 +385,8 @@ contract PufferVaultV2ForkTest is TestHelper {
         vm.startPrank(dao);
         pufferVault.setDailyWithdrawalLimit(newLimit);
 
-        // The remaining limit is 0, because the whale already withdrew 20 ether today
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0, "0 left");
+        // The remaining limit is reset in `setDailyWithdrawalLimit`
+        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 10 ether, "10 ether left - limit is reset");
     }
 
     function test_burn() public withCaller(pufferWhale) {
