@@ -21,23 +21,6 @@ contract MockPufferOracle is IPufferOracleV2 {
 
     uint256 public numberOfActiveValidators;
 
-    /**
-     * @notice Simulate proofOfReservers from the guardians
-     */
-    function proofOfReserve(
-        uint152 newLockedETH,
-        uint56 blockNumber,
-        uint24 numberOfActivePufferValidators,
-        uint24 totalNumberOfValidators,
-        bytes[] calldata
-    ) external {
-        lockedETH = newLockedETH;
-        lastUpdate = blockNumber;
-        numberOfActiveValidators = numberOfActivePufferValidators;
-
-        emit ReservesUpdated(blockNumber, newLockedETH, numberOfActivePufferValidators, totalNumberOfValidators);
-    }
-
     function getLastUpdate() external view returns (uint256) {
         return lastUpdate;
     }
@@ -47,6 +30,7 @@ contract MockPufferOracle is IPufferOracleV2 {
     }
 
     function provisionNode() external { }
+    function exitValidators(uint256) external { }
 
     function getValidatorTicketPrice() external view returns (uint256 pricePerVT) { }
 
