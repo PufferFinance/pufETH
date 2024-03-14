@@ -300,6 +300,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      */
     function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
         _setDailyWithdrawalLimit(newLimit);
+        _resetDailyWithdrawals();
     }
 
     /**
@@ -317,10 +318,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         VaultStorage storage $ = _getPufferVaultStorage();
         uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
-
-        if (dailyAssetsWithdrawalLimit < assetsWithdrawnToday) {
-            return 0;
-        }
 
         // If we are in a new day, return the full daily limit
         if ($.lastWithdrawalDay < block.timestamp / 1 days) {
@@ -417,8 +414,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
         // Check if it's a new day to reset the withdrawal count
         if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-            $.assetsWithdrawnToday = 0;
+            _resetDailyWithdrawals();
         }
         $.assetsWithdrawnToday += uint96(withdrawalAmount);
         emit AssetsWithdrawnToday($.assetsWithdrawnToday);
@@ -446,6 +442,13 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
+    }
+
+    function _resetDailyWithdrawals() internal virtual {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+        $.assetsWithdrawnToday = 0;
+        emit DailyWithdrawalLimitReset();
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
