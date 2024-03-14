@@ -468,13 +468,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
     }
 
-    function _resetDailyWithdrawals() internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-        $.assetsWithdrawnToday = 0;
-        emit DailyWithdrawalLimitReset();
-    }
-
     // slither-disable-next-line dead-code
     function _markDeposit() internal virtual {
         assembly {
