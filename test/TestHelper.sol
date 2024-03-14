@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
-import { PufferDepositor } from "../src/PufferDepositor.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
@@ -11,7 +10,6 @@ import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
-import { PufferVault } from "../src/PufferVault.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { IWstETH } from "../src/interface/Lido/IWstETH.sol";
@@ -71,20 +69,10 @@ contract TestHelper is Test {
     address dave = makeAddr("dave");
     address eve = makeAddr("eve");
 
-    // Use Binance exchange address for mainnet fork tests to get ETH + erc20s
-    address BINANCE = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
     // Use Maker address for mainnet fork tests to get wETH
     address MAKER_VAULT = 0x2F0b23f53734252Bda2277357e97e1517d6B042A;
     // Use Blast deposit contract for mainnet fork tests to get stETH
     address BLAST_DEPOSIT = 0x5F6AE08B8AeB7078cf2F96AFb089D7c9f51DA47d;
-    // Convex Whale
-    address CVX_WHALE = 0x72a19342e8F1838460eBFCCEf09F6585e32db86E;
-
-    // Token addresses
-    address CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
-    address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address APE = 0x4d224452801ACEd8B2F0aebE155379bb5D594381;
 
     address LIDO_WITHDRAWAL_QUEUE = 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
     address LIDO_ACCOUNTING_ORACLE = 0x852deD011285fe67063a08005c71a85690503Cee;
@@ -138,12 +126,8 @@ contract TestHelper is Test {
         vm.label(address(accessManager), "AccessManager");
         vm.label(0x17144556fd3424EDC8Fc8A4C940B2D04936d17eb, "stETH implementation");
         vm.label(0x2b33CF282f867A7FF693A66e11B0FcC5552e4425, "stETH kernel");
-        vm.label(address(APE), "APE");
-        vm.label(address(USDT), "USDT");
-        vm.label(address(USDC), "USDC");
         vm.label(address(_WETH), "WETH");
         vm.label(0x1111111254EEB25477B68fb85Ed929f73A960582, "1Inch router");
-        vm.label(BINANCE, "BINANCE exchange");
         vm.label(MAKER_VAULT, "MAKER Vault");
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
 
@@ -179,7 +163,6 @@ contract TestHelper is Test {
         );
 
         // Upgrade PufferDepositor
-
         PufferDepositorV2 newDepositorImplementation =
             new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), _ST_ETH);
 
