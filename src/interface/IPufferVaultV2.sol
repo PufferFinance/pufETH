@@ -15,12 +15,17 @@ interface IPufferVaultV2 is IPufferVault {
     error ETHTransferFailed();
 
     /**
+     * @dev Thrown if there is a deposit and a withdrawal in the same transaction
+     */
+    error DepositAndWithdrawalForbidden();
+
+    /**
      * @dev Thrown if the new exit fee basis points is invalid
      */
     error InvalidExitFeeBasisPoints();
 
     /**
-     * Emitted when assets (WETH) are withdrawn 
+     * Emitted when assets (WETH) are withdrawn
      * @dev Signature: 0x139f9ee0762f3b0c92a4b8c7b8fe8be6b12aaece4b9b22de6bf1ba1094dcd998
      */
     event AssetsWithdrawnToday(uint256 withdrawalAmount);

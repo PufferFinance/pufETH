@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { PufferVaultV2Tests } from "../../src/PufferVaultV2Tests.sol";
 import { PufferDepositorV2 } from "../../src/PufferDepositorV2.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
@@ -202,7 +203,7 @@ contract PufferTest is Test {
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV2 newImplementation = new PufferVaultV2(
+        PufferVaultV2 newImplementation = new PufferVaultV2Tests(
             _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
         );
 

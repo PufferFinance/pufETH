@@ -106,6 +106,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         restricted
         returns (uint256)
     {
+        _revertIfDeposited();
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
@@ -138,6 +139,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         restricted
         returns (uint256)
     {
+        _revertIfDeposited();
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
@@ -159,6 +161,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositETH(address receiver) public payable virtual restricted returns (uint256) {
+        _markDeposit();
+
         uint256 maxAssets = maxDeposit(receiver);
         if (msg.value > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
@@ -176,6 +180,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
+        _markDeposit();
+
         uint256 maxAssets = maxDeposit(receiver);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
@@ -190,6 +196,24 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         emit Deposit(_msgSender(), receiver, assets, shares);
 
         return shares;
+    }
+
+    /**
+     * @inheritdoc PufferVault
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function deposit(uint256 assets, address receiver) public virtual override restricted returns (uint256) {
+        _markDeposit();
+        return super.deposit(assets, receiver);
+    }
+
+    /**
+     * @inheritdoc PufferVault
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function mint(uint256 shares, address receiver) public override restricted returns (uint256) {
+        _markDeposit();
+        return super.mint(shares, receiver);
     }
 
     /**
@@ -443,6 +467,22 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
+    }
+
+    // slither-disable-next-line dead-code
+    function _markDeposit() internal virtual {
+        assembly {
+            tstore(_DEPOSIT_TRACKER_LOCATION, 1)
+        }
+    }
+
+    function _revertIfDeposited() internal virtual {
+        assembly {
+            if tload(_DEPOSIT_TRACKER_LOCATION) {
+                mstore(0x00, 0x39b79d11) // `DepositAndWithdrawalForbidden()`.
+                revert(0x1c, 0x04)
+            }
+        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
