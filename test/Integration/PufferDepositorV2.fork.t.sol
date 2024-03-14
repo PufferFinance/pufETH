@@ -66,6 +66,49 @@ contract PufferDepositorV2ForkTest is TestHelper {
         assertApproxEqAbs(depositorAssetsAmount, stETHDepositAmount, 1, "steth received assets should be ~equal");
     }
 
+    function test_stETH_donation_and_first_depositor_after_donation()
+        public
+        giveToken(BLAST_DEPOSIT, address(stETH), alice, 100 ether)
+        giveToken(BLAST_DEPOSIT, address(stETH), bob, 100 ether)
+        withCaller(alice)
+    {
+        // Alice transfers 1 stETH to the Vault by mistake
+        _ST_ETH.transfer(address(pufferDepositor), 1 ether);
+
+        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH for alice");
+
+        vm.startPrank(bob);
+
+        Permit memory permit = _signPermit(
+            _testTemps(
+                "bob",
+                address(pufferDepositor),
+                1 ether,
+                block.timestamp,
+                hex"260e7e1a220ea89b9454cbcdc1fcc44087325df199a3986e560d75db18b2e253"
+            )
+        );
+        assertEq(0, pufferVault.balanceOf(bob), "bob got 0 pufETH");
+
+        // 1 stETH should be ~
+        uint256 expectedAmount = pufferVault.convertToShares(1 ether);
+
+        // Bob deposits 1 stETH via PufferDepositor
+        // But his deposit will sweep the stETH.balanceOf(pufferDepositor) as well, meaning he will get shares for Alice's 1 stETH
+        uint256 depositorAmount = pufferDepositor.depositStETH(permit, bob);
+
+        assertEq(depositorAmount, pufferVault.balanceOf(bob), "bob got");
+
+        // 3 wei difference, because the PufferDepositor already has 1 wei of stETH (leftover)
+        assertApproxEqAbs((expectedAmount * 2), depositorAmount, 3, "bob got more pufETH than expected");
+
+        assertApproxEqAbs(
+            pufferVault.convertToAssets(pufferVault.balanceOf(bob)), 2 ether, 3, "2 eth worth of assets for bob"
+        );
+
+        assertEq(0, pufferVault.balanceOf(alice), "alice got 0");
+    }
+
     function test_stETH_share_conversion() public {
         uint256 stETHAmount = 100 ether;
         uint256 stETHSharesAmount = _ST_ETH.getSharesByPooledEth(stETHAmount);
