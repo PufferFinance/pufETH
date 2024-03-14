@@ -24,5 +24,7 @@ contract PufferVaultV2Tests is PufferVaultV2 {
     }
 
     // This functionality must be disabled because of the foundry tests
-    function _markDeposit() internal virtual override { }
+    modifier markDeposit() virtual override {
+        _;
+    }
 }

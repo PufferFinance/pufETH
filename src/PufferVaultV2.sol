@@ -103,10 +103,10 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         public
         virtual
         override
+        revertIfDeposited
         restricted
         returns (uint256)
     {
-        _revertIfDeposited();
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
@@ -136,10 +136,10 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         public
         virtual
         override
+        revertIfDeposited
         restricted
         returns (uint256)
     {
-        _revertIfDeposited();
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
@@ -160,9 +160,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address receiver) public payable virtual restricted returns (uint256) {
-        _markDeposit();
-
+    function depositETH(address receiver) public payable virtual markDeposit restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (msg.value > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
@@ -179,9 +177,13 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositStETH(uint256 stETHSharesAmount, address receiver) public virtual restricted returns (uint256) {
-        _markDeposit();
-
+    function depositStETH(uint256 stETHSharesAmount, address receiver)
+        public
+        virtual
+        markDeposit
+        restricted
+        returns (uint256)
+    {
         uint256 maxAssets = maxDeposit(receiver);
 
         // Get the amount of assets (stETH) that corresponds to `stETHSharesAmount` so that we can use it in our calculation
@@ -205,8 +207,14 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(uint256 assets, address receiver) public virtual override restricted returns (uint256) {
-        _markDeposit();
+    function deposit(uint256 assets, address receiver)
+        public
+        virtual
+        override
+        markDeposit
+        restricted
+        returns (uint256)
+    {
         return super.deposit(assets, receiver);
     }
 
@@ -214,8 +222,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function mint(uint256 shares, address receiver) public override restricted returns (uint256) {
-        _markDeposit();
+    function mint(uint256 shares, address receiver) public virtual override markDeposit restricted returns (uint256) {
         return super.mint(shares, receiver);
     }
 
@@ -469,19 +476,21 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     // slither-disable-next-line dead-code
-    function _markDeposit() internal virtual {
+    modifier markDeposit() virtual {
         assembly {
             tstore(_DEPOSIT_TRACKER_LOCATION, 1)
         }
+        _;
     }
 
-    function _revertIfDeposited() internal virtual {
+    modifier revertIfDeposited() virtual {
         assembly {
             if tload(_DEPOSIT_TRACKER_LOCATION) {
                 mstore(0x00, 0x39b79d11) // `DepositAndWithdrawalForbidden()`.
                 revert(0x1c, 0x04)
             }
         }
+        _;
     }
 
     function _resetDailyWithdrawals() internal virtual {
