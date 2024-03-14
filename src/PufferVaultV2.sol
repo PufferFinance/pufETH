@@ -491,6 +491,13 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
     }
 
+    function _resetDailyWithdrawals() internal virtual {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+        $.assetsWithdrawnToday = 0;
+        emit DailyWithdrawalLimitReset();
+    }
+
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 
     function _getERC4626StorageInternal() private pure returns (ERC4626Storage storage $) {
