@@ -20,6 +20,12 @@ interface IPufferVaultV2 is IPufferVault {
     error InvalidExitFeeBasisPoints();
 
     /**
+     * Emitted when assets (WETH) are withdrawn 
+     * @dev Signature: 0x139f9ee0762f3b0c92a4b8c7b8fe8be6b12aaece4b9b22de6bf1ba1094dcd998
+     */
+    event AssetsWithdrawnToday(uint256 withdrawalAmount);
+
+    /**
      * Emitted when the daily withdrawal limit is set
      * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
      */
