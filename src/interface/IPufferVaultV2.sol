@@ -15,6 +15,11 @@ interface IPufferVaultV2 is IPufferVault {
     error ETHTransferFailed();
 
     /**
+     * @dev Thrown if there is a deposit and a withdrawal in the same transaction
+     */
+    error DepositAndWithdrawalForbidden();
+
+    /**
      * @dev Thrown if the new exit fee basis points is invalid
      */
     error InvalidExitFeeBasisPoints();

@@ -6,9 +6,21 @@ import { TestHelper } from "../TestHelper.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract PufferVaultV2ForkTest is TestHelper {
     address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
+
+    function setUp() public virtual override {
+        // Cancun upgrade
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 19431593); //(Mar-14-2024 06:53:11 AM +UTC)
+
+        // Setup contracts that are deployed to mainnet
+        _setupLiveContracts();
+
+        // Upgrade to latest version
+        _upgradeToMainnetPuffer();
+    }
 
     // Sanity check
     function test_sanity() public {
@@ -17,10 +29,35 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.decimals(), 18, "decimals");
         assertEq(pufferVault.asset(), address(_WETH), "asset");
         assertEq(pufferVault.getPendingLidoETHAmount(), 0, "0 pending lido eth");
-        assertEq(pufferVault.totalAssets(), 351755.122828329778282991 ether, "total assets");
+        assertEq(pufferVault.totalAssets(), 368072.286049064583783628 ether, "total assets");
         assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
-        assertEq(pufferVault.getELBackingEthAmount(), 341562.667703458494350801 ether, "0 EL backing eth"); // mainnet fork 19271279);
+        assertEq(pufferVault.getELBackingEthAmount(), 342289.36625576203463247 ether, "0 EL backing eth"); // mainnet fork 19431593);
         assertEq(pufferVault.getExitFeeBasisPoints(), 100, "1% withdrawal fee");
+    }
+
+    // Deposit & Withdrawal in the same tx is forbidden. This is a security measure to prevent vault griefing by using flash loans.
+    function test_deposit_and_withdrawal_same_tx() public withCaller(alice) {
+        // In test environment, we deploy and use src/PufferVaultV2Tests.sol that has the markDeposit modifier disabled
+        // Foundry tests are executing all tests from the same transaction, and if it wasn't disabled, pretty much every test would fail.
+
+        // With that code PufferVaultV2Tests deployed, we can test the deposit and withdrawal in the same transaction
+        vm.deal(alice, 2 ether);
+        pufferVault.depositETH{ value: 1 ether }(alice);
+        pufferVault.withdraw(pufferVault.maxWithdraw(alice), alice, alice);
+
+        // After we made sure that it works, we can re-enable the modifier by upgrading to a real mainnet `PufferVaultV2.sol` that has the modifier enabled
+        vm.startPrank(COMMUNITY_MULTISIG);
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(pufferVaultWithBlocking), "");
+
+        // Now, in the same transaction Alice deposits successfully, but the withdrawal reverts
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: 1 ether }(alice);
+
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
+
+        // Withdrawal reverts because it is in the same transaction (foundry tests are executing all tests from the same transaction)
+        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV2.DepositAndWithdrawalForbidden.selector));
+        pufferVault.withdraw(maxWithdraw, alice, alice);
     }
 
     function test_max_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
@@ -79,7 +116,7 @@ contract PufferVaultV2ForkTest is TestHelper {
         // Whale has more than 100 ether, but the limit is 100 eth
         assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
         // Because of the withdrawal fee, the maxRedeem is bigger than the maxWithdraw
-        assertEq(pufferVault.maxRedeem(pufferWhale), 100.809171922216365146 ether, "max redeem");
+        assertEq(pufferVault.maxRedeem(pufferWhale), 100.595147442558494386 ether, "max redeem");
     }
 
     function test_setDailyWithdrawalLimit() public {
@@ -428,8 +465,8 @@ contract PufferVaultV2ForkTest is TestHelper {
     }
 
     function test_redeem_fails_if_no_eth_seeded() public withCaller(pufferWhale) {
-        // mainnet vault start with 0 eth
-        assertEq(address(pufferVault).balance, 0 ether, "vault ETH");
+        // mainnet vault start actually has some balance
+        assertEq(address(pufferVault).balance, 4433776828572703, "vault ETH");
 
         uint256 maxWhaleRedeemableShares = pufferVault.maxRedeem(pufferWhale);
 
@@ -440,7 +477,7 @@ contract PufferVaultV2ForkTest is TestHelper {
     // function test_redeem_succeeds_if_seeded_with_eth() public withCaller(pufferWhale) {
     function test_redeem_succeeds_if_seeded_with_eth() public {
         // mainnet vault start with 0 eth
-        assertEq(address(pufferVault).balance, 0 ether, "vault ETH");
+        assertEq(address(pufferVault).balance, 4433776828572703, "vault ETH");
 
         // Fill vault with withdrawal liquidity
         _withdraw_stETH_from_lido();
@@ -604,8 +641,8 @@ contract PufferVaultV2ForkTest is TestHelper {
         // Claim withdrawals
         pufferVault.claimWithdrawalsFromLido(requestIds);
 
-        // Because we don't simulate an oracle update after we initiateETHWithdrawals, we get less than we sent. `591696852457060` less on 2k ETH
-        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore, 591696852457060, "asset change");
+        // Because we don't simulate an oracle update after we initiateETHWithdrawals, we get less than we sent. `976671819902367` less on 2k ETH
+        assertApproxEqAbs(pufferVault.totalAssets(), assetsBefore, 976671819902367, "asset change");
         assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore, 1e9, "shares change");
     }
 }

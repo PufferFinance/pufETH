@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV2Tests } from "../src/PufferVaultV2Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
@@ -53,6 +54,9 @@ contract TestHelper is Test {
 
     PufferDepositorV2 public pufferDepositor;
     PufferVaultV2 public pufferVault;
+    PufferVaultV2 public pufferVaultWithBlocking;
+    // Non blocking version is required because of the foundry tests
+    PufferVaultV2 public pufferVaultNonBlocking;
     AccessManager public accessManager;
     Timelock public timelock;
 
@@ -138,9 +142,15 @@ contract TestHelper is Test {
         // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
         MockPufferOracle mockOracle = new MockPufferOracle();
 
+        pufferVaultNonBlocking = new PufferVaultV2Tests(
+            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
+        );
+
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV2 newImplementation = new PufferVaultV2(
+        PufferVaultV2 newImplementation = pufferVaultNonBlocking;
+
+        pufferVaultWithBlocking = new PufferVaultV2(
             _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
         );
 

@@ -34,6 +34,10 @@ abstract contract PufferVaultStorage {
         uint256 exitFeeBasisPoints;
     }
 
+    // keccak256(abi.encode(uint256(keccak256("puffervault.depositTracker")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 internal constant _DEPOSIT_TRACKER_LOCATION =
+        0x78b7b410d94d33094d5b8a71f1c003e2cbb9e212054d2df1984e3dabc3b25e00;
+
     // keccak256(abi.encode(uint256(keccak256("puffervault.storage")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _VAULT_STORAGE_LOCATION =
         0x611ea165ca9257827fc43d2954fdae7d825e82c825d9037db9337fa1bfa93100;

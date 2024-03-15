@@ -5,6 +5,7 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV2Tests } from "../src/PufferVaultV2Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
@@ -49,7 +50,7 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV2 newImplementation = new PufferVaultV2(
+        PufferVaultV2 newImplementation = new PufferVaultV2Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
