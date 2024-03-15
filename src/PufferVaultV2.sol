@@ -475,19 +475,19 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
     }
 
-    // slither-disable-next-line dead-code
     modifier markDeposit() virtual {
         assembly {
-            tstore(_DEPOSIT_TRACKER_LOCATION, 1)
+            tstore(_DEPOSIT_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
         }
         _;
     }
 
     modifier revertIfDeposited() virtual {
         assembly {
+            // If the deposit tracker location is set to `1`, revert with `DepositAndWithdrawalForbidden()`
             if tload(_DEPOSIT_TRACKER_LOCATION) {
-                mstore(0x00, 0x39b79d11) // `DepositAndWithdrawalForbidden()`.
-                revert(0x1c, 0x04)
+                mstore(0x00, 0x39b79d11) // Store the error signature `0x39b79d11` for `error DepositAndWithdrawalForbidden()` in memory.
+                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert DepositAndWithdrawalForbidden()`
             }
         }
         _;

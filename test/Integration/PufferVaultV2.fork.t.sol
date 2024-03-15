@@ -35,29 +35,29 @@ contract PufferVaultV2ForkTest is TestHelper {
         assertEq(pufferVault.getExitFeeBasisPoints(), 100, "1% withdrawal fee");
     }
 
+    // Deposit & Withdrawal in the same tx is forbidden. This is a security measure to prevent vault griefing by using flash loans.
     function test_deposit_and_withdrawal_same_tx() public withCaller(alice) {
-        // First time, it works because we are are using PufferVaultV2Tests (disabled functionality)
-        // deposit & withdrawal in the same tx will work (foundry internally uses a contract to send transactions)
+        // In test environment, we deploy and use src/PufferVaultV2Tests.sol that has the markDeposit modifier disabled
+        // Foundry tests are executing all tests from the same transaction, and if it wasn't disabled, pretty much every test would fail.
+
+        // With that code PufferVaultV2Tests deployed, we can test the deposit and withdrawal in the same transaction
         vm.deal(alice, 2 ether);
         pufferVault.depositETH{ value: 1 ether }(alice);
         pufferVault.withdraw(pufferVault.maxWithdraw(alice), alice, alice);
 
+        // After we made sure that it works, we can re-enable the modifier by upgrading to a real mainnet `PufferVaultV2.sol` that has the modifier enabled
         vm.startPrank(COMMUNITY_MULTISIG);
         UUPSUpgradeable(pufferVault).upgradeToAndCall(address(pufferVaultWithBlocking), "");
 
-        // Change caller to Alice
+        // Now, in the same transaction Alice deposits successfully, but the withdrawal reverts
         vm.startPrank(alice);
-        // Now, it should fail
         pufferVault.depositETH{ value: 1 ether }(alice);
 
         uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
 
-        // Reverts
+        // Withdrawal reverts because it is in the same transaction (foundry tests are executing all tests from the same transaction)
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV2.DepositAndWithdrawalForbidden.selector));
         pufferVault.withdraw(maxWithdraw, alice, alice);
-
-        vm.startPrank(COMMUNITY_MULTISIG);
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(pufferVaultNonBlocking), "");
     }
 
     function test_max_deposit() public giveToken(MAKER_VAULT, address(_WETH), alice, 100 ether) {
