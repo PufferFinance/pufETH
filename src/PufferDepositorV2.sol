@@ -55,9 +55,11 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
         }) { } catch { }
 
         SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
-        uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
 
-        return PUFFER_VAULT.depositStETH(stETHAmount, recipient);
+        _WST_ETH.unwrap(permitData.amount);
+
+        // The PufferDepositor is not supposed to hold any stETH, so we sharesOf(PufferDepositor) to the PufferVault immediately
+        return PUFFER_VAULT.depositStETH(_ST_ETH.sharesOf(address(this)), recipient);
     }
 
     /**
@@ -78,9 +80,11 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
             r: permitData.r
         }) { } catch { }
 
+        // Transfer stETH from user to this contract. The amount received here can be 1-2 wei lower than the actual permitData.amount
         SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);
 
-        return PUFFER_VAULT.depositStETH(permitData.amount, recipient);
+        // The PufferDepositor is not supposed to hold any stETH, so we sharesOf(PufferDepositor) to the PufferVault immediately
+        return PUFFER_VAULT.depositStETH(_ST_ETH.sharesOf(address(this)), recipient);
     }
 
     /**

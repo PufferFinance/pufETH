@@ -15,9 +15,9 @@ auto_detect_solc = false
 # bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
-evm_version = "shanghai" # PUSH0 is good (mainnet)
+evm_version = "cancun" # is live on mainnet
 seed = "0x1337"
-solc = "0.8.23"
+solc = "0.8.24"
 # via_ir = true
 
 [fmt]

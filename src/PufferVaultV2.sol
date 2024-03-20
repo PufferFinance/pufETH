@@ -103,6 +103,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         public
         virtual
         override
+        revertIfDeposited
         restricted
         returns (uint256)
     {
@@ -135,6 +136,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         public
         virtual
         override
+        revertIfDeposited
         restricted
         returns (uint256)
     {
@@ -158,7 +160,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address receiver) public payable virtual restricted returns (uint256) {
+    function depositETH(address receiver) public payable virtual markDeposit restricted returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (msg.value > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
@@ -175,21 +177,53 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @inheritdoc IPufferVaultV2
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositStETH(uint256 assets, address receiver) public virtual restricted returns (uint256) {
+    function depositStETH(uint256 stETHSharesAmount, address receiver)
+        public
+        virtual
+        markDeposit
+        restricted
+        returns (uint256)
+    {
         uint256 maxAssets = maxDeposit(receiver);
+
+        // Get the amount of assets (stETH) that corresponds to `stETHSharesAmount` so that we can use it in our calculation
+        uint256 assets = _ST_ETH.getPooledEthByShares(stETHSharesAmount);
+
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
         }
 
         uint256 shares = previewDeposit(assets);
-
-        // slither-disable-next-line reentrancy-no-eth
-        SafeERC20.safeTransferFrom(_ST_ETH, _msgSender(), address(this), assets);
+        // Transfer the exact number of stETH shares from the user to the vault
+        _ST_ETH.transferSharesFrom({ _sender: msg.sender, _recipient: address(this), _sharesAmount: stETHSharesAmount });
         _mint(receiver, shares);
 
         emit Deposit(_msgSender(), receiver, assets, shares);
 
         return shares;
+    }
+
+    /**
+     * @inheritdoc PufferVault
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function deposit(uint256 assets, address receiver)
+        public
+        virtual
+        override
+        markDeposit
+        restricted
+        returns (uint256)
+    {
+        return super.deposit(assets, receiver);
+    }
+
+    /**
+     * @inheritdoc PufferVault
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function mint(uint256 shares, address receiver) public virtual override markDeposit restricted returns (uint256) {
+        return super.mint(shares, receiver);
     }
 
     /**
@@ -291,12 +325,21 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
+     * @notice Returns the amount of shares (pufETH) for the `assets` amount rounded up
+     * @param assets The amount of assets
+     */
+    function convertToSharesUp(uint256 assets) public view returns (uint256) {
+        return _convertToShares(assets, Math.Rounding.Ceil);
+    }
+
+    /**
      * @notice Sets a new daily withdrawal limit
      * @dev Restricted to the DAO
      * @param newLimit The new daily limit to be set
      */
     function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
         _setDailyWithdrawalLimit(newLimit);
+        _resetDailyWithdrawals();
     }
 
     /**
@@ -314,10 +357,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         VaultStorage storage $ = _getPufferVaultStorage();
         uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
         uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
-
-        if (dailyAssetsWithdrawalLimit < assetsWithdrawnToday) {
-            return 0;
-        }
 
         // If we are in a new day, return the full daily limit
         if ($.lastWithdrawalDay < block.timestamp / 1 days) {
@@ -414,11 +453,10 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
         // Check if it's a new day to reset the withdrawal count
         if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-            $.assetsWithdrawnToday = 0;
+            _resetDailyWithdrawals();
         }
-
         $.assetsWithdrawnToday += uint96(withdrawalAmount);
+        emit AssetsWithdrawnToday($.assetsWithdrawnToday);
     }
 
     /**
@@ -443,6 +481,31 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
+    }
+
+    modifier markDeposit() virtual {
+        assembly {
+            tstore(_DEPOSIT_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
+        }
+        _;
+    }
+
+    modifier revertIfDeposited() virtual {
+        assembly {
+            // If the deposit tracker location is set to `1`, revert with `DepositAndWithdrawalForbidden()`
+            if tload(_DEPOSIT_TRACKER_LOCATION) {
+                mstore(0x00, 0x39b79d11) // Store the error signature `0x39b79d11` for `error DepositAndWithdrawalForbidden()` in memory.
+                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert DepositAndWithdrawalForbidden()`
+            }
+        }
+        _;
+    }
+
+    function _resetDailyWithdrawals() internal virtual {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
+        $.assetsWithdrawnToday = 0;
+        emit DailyWithdrawalLimitReset();
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

@@ -15,9 +15,26 @@ interface IPufferVaultV2 is IPufferVault {
     error ETHTransferFailed();
 
     /**
+     * @dev Thrown if there is a deposit and a withdrawal in the same transaction
+     */
+    error DepositAndWithdrawalForbidden();
+
+    /**
      * @dev Thrown if the new exit fee basis points is invalid
      */
     error InvalidExitFeeBasisPoints();
+
+    /**
+     * Emitted when assets (WETH) are withdrawn
+     * @dev Signature: 0x139f9ee0762f3b0c92a4b8c7b8fe8be6b12aaece4b9b22de6bf1ba1094dcd998
+     */
+    event AssetsWithdrawnToday(uint256 withdrawalAmount);
+
+    /**
+     * Emitted daily withdrawal limit is reset
+     * @dev Signature: 0x190567136e3dd93d29bef98a7c7c87cff34ee88e71d634b52f5fb3b531085f40
+     */
+    event DailyWithdrawalLimitReset();
 
     /**
      * Emitted when the daily withdrawal limit is set
@@ -63,9 +80,9 @@ interface IPufferVaultV2 is IPufferVault {
 
     /**
      * @notice Deposits stETH into the Puffer Vault
-     * @param assets The amount of stETH to deposit
+     * @param stETHSharesAmount The shares amount of stETH to deposit
      * @param receiver The recipient of pufETH tokens
      * @return shares The amount of pufETH received from the deposit
      */
-    function depositStETH(uint256 assets, address receiver) external returns (uint256);
+    function depositStETH(uint256 stETHSharesAmount, address receiver) external returns (uint256);
 }
