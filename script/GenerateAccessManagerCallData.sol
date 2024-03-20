@@ -8,7 +8,7 @@ import { console } from "forge-std/console.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS } from "./Roles.sol";
+import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -81,7 +81,10 @@ contract GenerateAccessManagerCallData is Script {
         operationsSelectors[1] = PufferVaultV2.claimWithdrawalsFromLido.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, operationsSelectors, ROLE_ID_OPERATIONS
+            AccessManager.setTargetFunctionRole.selector,
+            pufferVaultProxy,
+            operationsSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
         );
     }
 

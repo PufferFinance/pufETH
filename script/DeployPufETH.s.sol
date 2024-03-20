@@ -21,7 +21,7 @@ import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
-import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS } from "./Roles.sol";
+import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 /**
  * @title DeployPuffer
@@ -210,12 +210,12 @@ contract DeployPufETH is BaseScript {
 
         // Setup setup role
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_OPERATIONS
+            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_OPERATIONS_MULTISIG
         );
 
         // Setup role members (no delay)
         calldatas[1] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS, operationsMultisig, 0);
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         // Grant admin role to timelock
         calldatas[2] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);

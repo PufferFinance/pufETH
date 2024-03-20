@@ -5,7 +5,8 @@ pragma solidity >=0.8.0 <0.9.0;
 // Operations with 7 day delay, Community 0
 uint64 constant ROLE_ID_UPGRADER = 1;
 // Role assigned to Operations Multisig
-uint64 constant ROLE_ID_OPERATIONS = 22;
+uint64 constant ROLE_ID_OPERATIONS_MULTISIG = 22;
+uint64 constant ROLE_ID_OPERATIONS_BOT = 23;
 
 // Role assigned to the Puffer Protocol
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;
