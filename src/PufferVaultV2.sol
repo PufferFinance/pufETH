@@ -73,8 +73,10 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             // Must do this.transfer (external call) because ERC20Upgradeable uses Context::_msgSender() (the msg.sender of the .initialize external call)
 
             // https://etherscan.io/tx/0x2e02a00dbc8ba48cd65a6802d174c210d0c4869806a564cca0088e42d382b2ff
+            // slither-disable-next-line unchecked-transfer
             this.transfer(WHALE_PUFFER, 299.864287100672938618 ether);
             // https://etherscan.io/tx/0x7d309dc26cb3f0226e480e0d4c598707faee59d58bfc68bedb75cf5055ac274a
+            // slither-disable-next-line unchecked-transfer
             this.transfer(PUFFER, 25426113577506618);
         }
     }
