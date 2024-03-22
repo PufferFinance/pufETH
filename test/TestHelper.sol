@@ -91,10 +91,14 @@ contract TestHelper is Test {
 
     // Transfer `token` from `from` to `to` to fill accounts in mainnet fork tests
     modifier giveToken(address from, address token, address to, uint256 amount) {
+        _giveToken(from, token, to, amount);
+        _;
+    }
+
+    function _giveToken(address from, address token, address to, uint256 amount) internal {
         vm.startPrank(from);
         SafeERC20.safeTransfer(IERC20(token), to, amount);
         vm.stopPrank();
-        _;
     }
 
     modifier withCaller(address caller) {
@@ -134,6 +138,14 @@ contract TestHelper is Test {
         vm.label(0x1111111254EEB25477B68fb85Ed929f73A960582, "1Inch router");
         vm.label(MAKER_VAULT, "MAKER Vault");
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
+
+        // Simulate transferring pufETH to the PufferVault by mistake
+        _giveToken(
+            0xB3c8Ce1eE157b0DCAa96897C9170aEe6281706c9,
+            address(pufferVault),
+            address(pufferVault),
+            299864287100672938618
+        );
 
         (bob, bobSK) = makeAddrAndKey("bob");
     }

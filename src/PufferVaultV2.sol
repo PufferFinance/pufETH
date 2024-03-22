@@ -35,6 +35,12 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      */
     IPufferOracle public immutable PUFFER_ORACLE;
 
+    /**
+     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
+     */
+    address private constant WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
+    address private constant PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
+
     constructor(
         IStETH stETH,
         IWETH weth,
@@ -60,6 +66,17 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         _setDailyWithdrawalLimit(100 ether);
         _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
+
+        // Return pufETH to Puffers
+        // If statement is necessary because we don't wan to change existing tests that rely on the original behavior
+        if (balanceOf(address(this)) > 299 ether) {
+            // Must do this.transfer (external call) because ERC20Upgradeable uses Context::_msgSender() (the msg.sender of the .initialize external call)
+
+            // https://etherscan.io/tx/0x2e02a00dbc8ba48cd65a6802d174c210d0c4869806a564cca0088e42d382b2ff
+            this.transfer(WHALE_PUFFER, 299.864287100672938618 ether);
+            // https://etherscan.io/tx/0x7d309dc26cb3f0226e480e0d4c598707faee59d58bfc68bedb75cf5055ac274a
+            this.transfer(PUFFER, 25426113577506618);
+        }
     }
 
     /**
