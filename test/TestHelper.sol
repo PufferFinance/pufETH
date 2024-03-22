@@ -141,10 +141,10 @@ contract TestHelper is Test {
 
         // Simulate transferring pufETH to the PufferVault by mistake
         _giveToken(
-            0xB3c8Ce1eE157b0DCAa96897C9170aEe6281706c9,
+            0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222,
             address(pufferVault),
             address(pufferVault),
-            299864287100672938618
+            299.864287100672938618 ether
         );
 
         (bob, bobSK) = makeAddrAndKey("bob");
@@ -192,7 +192,10 @@ contract TestHelper is Test {
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));
         timelock.executeTransaction(
             address(pufferDepositor),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
+            abi.encodeCall(
+                UUPSUpgradeable.upgradeToAndCall,
+                (address(newDepositorImplementation), abi.encodeCall(PufferDepositorV2.initialize, ()))
+            ),
             1
         );
 
