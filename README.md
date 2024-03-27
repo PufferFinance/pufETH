@@ -38,7 +38,7 @@ Following the withdrawal process, the ETH will be utilized to provision decentra
 - [BlockSec](./audits/BlockSec-pufETH-v1.pdf)
 - [SlowMist](./audits/SlowMist-pufETH-v1.pdf)
 - [Quantstamp](./audits/Quantstamp-pufETH-v1.pdf)
-- [Trail of Bits](./audits/ToB-2024-03-pufferfinance.pdf)
+- [Trail of Bits](https://github.com/trailofbits/publications/blob/master/reviews/2024-03-pufferfinance-securityreview.pdf)
 
 # Tests
 
