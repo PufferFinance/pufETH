@@ -21,7 +21,7 @@ jobs:
         run: forge install
 
       - name: Run tests
-        run: forge test -vvv --match-path './test/unit/*'
+        run: forge test -vvv --match-path 'test/unit/*'
 
       # - name: Check gas snapshots
       #   run: forge snapshot 
