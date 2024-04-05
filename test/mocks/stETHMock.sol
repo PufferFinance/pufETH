@@ -45,6 +45,11 @@ contract stETHMock is IStETH, ERC20, ERC20Burnable {
         //not implemented, just there for IstETH conformance
     }
 
+    function transferSharesFrom(address _sender, address _recipient, uint256 _sharesAmount)
+        external
+        returns (uint256)
+    { }
+
     function transferShares(address _recipient, uint256 _sharesAmount) external returns (uint256) {
         //not implemented, just there for IstETH conformance
     }
