@@ -1,4 +1,4 @@
-# <h1 align="center"> Puffer Vault </h1> 
+# <h1 align="center"> Puffer Vault </h1>
 [![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
   [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
@@ -48,3 +48,12 @@ Installing dependencies and running tests can be executed running:
 ```
 ETH_RPC_URL=https://mainnet.infura.io/v3/YOUR_KEY forge test -vvvv
 ```
+
+# Echidna
+To install Echidna, see the instructions [here](https://github.com/crytic/echidna). To use Echidna, run the following command from the project's root:
+```bash
+forge install crytic/properties --no-commit
+echidna . --contract EchidnaPufferVaultV2 --config src/echidna/config.yaml
+```
+For more information see the properties [README](https://github.com/crytic/properties/tree/main).
+
