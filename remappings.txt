@@ -5,4 +5,3 @@ openzeppelin/=lib/openzeppelin-contracts/contracts/
 @openzeppelin/=lib/openzeppelin-contracts
 @openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 solady/=lib/solady/src/
-properties/=lib/properties/contracts/
