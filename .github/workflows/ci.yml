@@ -16,12 +16,14 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with: 
+          version: nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
       - name: Install deps
         run: forge install
 
       - name: Run tests
-        run: forge test -vvv --match-path 'test/unit/*'
+        run: forge test -vvv --match-path './test/unit/*'
 
       # - name: Check gas snapshots
       #   run: forge snapshot 
