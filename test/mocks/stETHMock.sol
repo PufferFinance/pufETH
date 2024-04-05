@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "../../src/interface/Lido/IStETH.sol";
 
-contract stETHMock is IStETH,ERC20, ERC20Burnable {
+contract stETHMock is IStETH, ERC20, ERC20Burnable {
     constructor() ERC20("Mock stETH", "mockStETH") { }
 
     uint256 public totalShares;
@@ -63,7 +63,7 @@ contract stETHMock is IStETH,ERC20, ERC20Burnable {
         return _pooledEthAmount * totalShares / totalPooledEther;
     }
 
-    function totalSupply() public view override(ERC20,IStETH) returns (uint256) {
+    function totalSupply() public view override(ERC20, IStETH) returns (uint256) {
         return super.totalSupply();
     }
 }

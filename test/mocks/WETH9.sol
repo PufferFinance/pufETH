@@ -70,11 +70,8 @@ contract WETH9 is IWETH {
 
         return true;
     }
-    function forceApproval(
-        address account,
-        address spender,
-        uint256 amount
-    ) public {
+
+    function forceApproval(address account, address spender, uint256 amount) public {
         allowance[account][spender] = amount;
         emit Approval(account, spender, amount);
     }
