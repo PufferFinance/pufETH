@@ -21,6 +21,7 @@ import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
 import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "openzeppelin/proxy/ERC1967/ERC1967Utils.sol";
+import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 
 contract TestHelper is Test {
     /**
@@ -33,6 +34,8 @@ contract TestHelper is Test {
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
+    IDelegationManager internal constant _EIGEN_DELEGATION_MANGER =
+        IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
 
     using stdStorage for StdStorage;
 
@@ -143,7 +146,13 @@ contract TestHelper is Test {
         MockPufferOracle mockOracle = new MockPufferOracle();
 
         pufferVaultNonBlocking = new PufferVaultV2Tests(
-            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            mockOracle,
+            _EIGEN_DELEGATION_MANGER
         );
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
@@ -151,7 +160,13 @@ contract TestHelper is Test {
         PufferVaultV2 newImplementation = pufferVaultNonBlocking;
 
         pufferVaultWithBlocking = new PufferVaultV2(
-            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            mockOracle,
+            _EIGEN_DELEGATION_MANGER
         );
 
         // Community multisig can do thing instantly

@@ -8,6 +8,7 @@ import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV2Tests } from "../src/PufferVaultV2Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
+import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
@@ -41,6 +42,8 @@ contract UpgradePufETH is BaseScript {
      */
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
+    IDelegationManager internal constant _DELEGATION_MANAGER =
+        IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
     IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
@@ -56,7 +59,8 @@ contract UpgradePufETH is BaseScript {
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IStrategy(deployment.stETHStrategyMock),
             IEigenLayer(deployment.eigenStrategyManagerMock),
-            IPufferOracle(pufferOracle)
+            IPufferOracle(pufferOracle),
+            _DELEGATION_MANAGER
         );
 
         vm.expectEmit(true, true, true, true);
