@@ -6,12 +6,15 @@ import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "./interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
+import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title PufferVaultV2
@@ -21,6 +24,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     using SafeERC20 for address;
     using EnumerableMap for EnumerableMap.UintToUintMap;
+    using EnumerableSet for EnumerableSet.Bytes32Set;
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
@@ -35,16 +39,23 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      */
     IPufferOracle public immutable PUFFER_ORACLE;
 
+    /**
+     * @notice Delegation manager from EigenLayer
+     */
+    IDelegationManager internal immutable _DELEGATION_MANAGER;
+
     constructor(
         IStETH stETH,
         IWETH weth,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager,
-        IPufferOracle oracle
+        IPufferOracle oracle,
+        IDelegationManager delegationManager
     ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
+        _DELEGATION_MANAGER = delegationManager;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
         _setDailyWithdrawalLimit(100 ether);
@@ -420,6 +431,83 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.exitFeeBasisPoints;
     }
+
+    /**
+     * @notice Initiates Withdrawal from EigenLayer
+     * Restricted access to Puffer Operations multisig
+     */
+    function initiateStETHWithdrawalFromEigenLayer(uint256 sharesToWithdraw) external virtual override restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
+            new IDelegationManager.QueuedWithdrawalParams[](1);
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
+
+        uint256[] memory shares = new uint256[](1);
+        shares[0] = sharesToWithdraw;
+
+        $.eigenLayerPendingWithdrawalSharesAmount += sharesToWithdraw;
+
+        withdrawals[0] = IDelegationManager.QueuedWithdrawalParams({
+            strategies: strategies,
+            shares: shares,
+            withdrawer: address(this)
+        });
+
+        bytes32 withdrawalRoot = _DELEGATION_MANAGER.queueWithdrawals(withdrawals)[0];
+
+        $.eigenLayerWithdrawals.add(withdrawalRoot);
+    }
+
+    /**
+     * @notice Claims the queued withdrawal from EigenLayer
+     * Restricted access to Puffer Operations multisig
+     */
+    function claimWithdrawalFromEigenLayerM2(
+        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
+        uint256 middlewareTimesIndex,
+        uint256 nonce
+    ) external virtual restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        IDelegationManager.Withdrawal memory withdrawal = IDelegationManager.Withdrawal({
+            staker: address(this),
+            delegatedTo: address(0),
+            withdrawer: address(this),
+            nonce: nonce,
+            startBlock: queuedWithdrawal.withdrawalStartBlock,
+            strategies: queuedWithdrawal.strategies,
+            shares: queuedWithdrawal.shares
+        });
+
+        bytes32 withdrawalRoot = _DELEGATION_MANAGER.calculateWithdrawalRoot(withdrawal);
+        bool isValidWithdrawal = $.eigenLayerWithdrawals.remove(withdrawalRoot);
+        if (!isValidWithdrawal) {
+            revert InvalidWithdrawal();
+        }
+
+        $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
+
+        _DELEGATION_MANAGER.completeQueuedWithdrawal({
+            withdrawal: withdrawal,
+            tokens: tokens,
+            middlewareTimesIndex: middlewareTimesIndex,
+            receiveAsTokens: true
+        });
+    }
+
+    // Not compatible anymore
+    function claimWithdrawalFromEigenLayer(
+        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
+        uint256 middlewareTimesIndex
+    ) external override { }
+
+    // Not needed anymore
+    function depositToEigenLayer(uint256 amount) external override { }
 
     /**
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
