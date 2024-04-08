@@ -253,6 +253,12 @@ contract DeployPufETH is BaseScript {
             lidoWithdrawalQueue = _LIDO_WITHDRAWAL_QUEUE;
             stETHStrategy = _EIGEN_STETH_STRATEGY;
             eigenStrategyManager = _EIGEN_STRATEGY_MANAGER;
+        } else if (isHolesky()) {
+            stETH = IStETH(address(0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034));
+            weth = new WETH9();
+            lidoWithdrawalQueue = ILidoWithdrawalQueue(0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50);
+            stETHStrategy = IStrategy(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3);
+            eigenStrategyManager = IEigenLayer(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6);
         } else {
             stETH = IStETH(address(new stETHMock()));
             weth = new WETH9();
