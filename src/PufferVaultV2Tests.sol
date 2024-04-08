@@ -8,6 +8,7 @@ import { IEigenLayer } from "./interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
+import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 
 contract PufferVaultV2Tests is PufferVaultV2 {
     constructor(
@@ -16,8 +17,9 @@ contract PufferVaultV2Tests is PufferVaultV2 {
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager,
-        IPufferOracle oracle
-    ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle) {
+        IPufferOracle oracle,
+        IDelegationManager delegationManager
+    ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
         _disableInitializers();
