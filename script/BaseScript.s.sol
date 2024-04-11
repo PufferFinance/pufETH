@@ -35,6 +35,10 @@ abstract contract BaseScript is Script {
         return (block.chainid == 1);
     }
 
+    function isHolesky() internal view returns (bool) {
+        return (block.chainid == 17000);
+    }
+
     function isAnvil() internal view returns (bool) {
         return (block.chainid == 31337);
     }

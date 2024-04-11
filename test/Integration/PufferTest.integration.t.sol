@@ -28,6 +28,7 @@ import { Timelock } from "../../src/Timelock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
 import { Permit } from "../../src/structs/Permit.sol";
+import { IDelegationManager } from "../../src/interface/EigenLayer/IDelegationManager.sol";
 
 /**
  * @dev PufferDepositor and PufferVault tests (v1)
@@ -37,6 +38,8 @@ contract PufferTest is Test {
      * @dev Ethereum Mainnet addresses
      */
     IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
+    IDelegationManager internal constant _EIGEN_DELEGATION_MANGER =
+        IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
     IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
     IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -175,7 +178,13 @@ contract PufferTest is Test {
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
         PufferVaultV2 newImplementation = new PufferVaultV2Tests(
-            _ST_ETH, _WETH, _LIDO_WITHDRAWAL_QUEUE, _EIGEN_STETH_STRATEGY, _EIGEN_STRATEGY_MANAGER, mockOracle
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            mockOracle,
+            _EIGEN_DELEGATION_MANGER
         );
 
         // Community multisig can do thing instantly

@@ -1,4 +1,4 @@
-# <h1 align="center"> Puffer Vault </h1> 
+# <h1 align="center"> Puffer Vault </h1>
 [![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
   [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
@@ -38,6 +38,7 @@ Following the withdrawal process, the ETH will be utilized to provision decentra
 - [BlockSec](./audits/BlockSec-pufETH-v1.pdf)
 - [SlowMist](./audits/SlowMist-pufETH-v1.pdf)
 - [Quantstamp](./audits/Quantstamp-pufETH-v1.pdf)
+- [Trail of Bits](https://github.com/trailofbits/publications/blob/master/reviews/2024-03-pufferfinance-securityreview.pdf)
 
 # Tests
 
@@ -47,3 +48,12 @@ Installing dependencies and running tests can be executed running:
 ```
 ETH_RPC_URL=https://mainnet.infura.io/v3/YOUR_KEY forge test -vvvv
 ```
+
+# Echidna
+To install Echidna, see the instructions [here](https://github.com/crytic/echidna). To use Echidna, run the following command from the project's root:
+```bash
+forge install crytic/properties --no-commit
+echidna . --contract EchidnaPufferVaultV2 --config src/echidna/config.yaml
+```
+For more information see the properties [README](https://github.com/crytic/properties/tree/main).
+
