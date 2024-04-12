@@ -6,14 +6,25 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
 contract PufferDepositorV2ForkTest is TestHelper {
+    /**
+     * @dev Wallet that transferred pufETH to the PufferDepositor by mistake.
+     */
+    address private constant PUFFER = 0x8A0C1e5cEA8e0F6dF341C005335E7fe5ed18A0a0;
+
     function setUp() public virtual override {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 19419083); // (2024-03-12 12:45:11) UTC block
 
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
+        assertEq(pufferVault.balanceOf(address(pufferDepositor)), 0.201 ether, "pufferDepositor pufETH");
+        assertEq(pufferVault.balanceOf(PUFFER), 0, "puffer pufETH before");
+
         // Upgrade to latest version
         _upgradeToMainnetPuffer();
+
+        assertEq(pufferVault.balanceOf(address(pufferDepositor)), 0 ether, "pufferDepositor 0 pufETH");
+        assertEq(pufferVault.balanceOf(PUFFER), 0.201 ether, "returned pufETH");
     }
 
     // StETH deposit through depositor and directly should mint ~amount
