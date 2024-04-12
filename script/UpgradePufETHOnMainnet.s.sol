@@ -40,7 +40,7 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/DeployPufETH.s.sol:DeployPufETH -vvvv --rpc-url=... --broadcast
+ *         PK=${deployer_pk} forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --rpc-url=... --broadcast
  */
 contract UpgradePufETHOnMainnet is BaseScript {
     /**
