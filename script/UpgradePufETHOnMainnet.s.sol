@@ -42,7 +42,7 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  *
  *         PK=${deployer_pk} forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --rpc-url=... --broadcast
  */
-contract UpgradePufETHOnMainnet is BaseScript {
+contract UpgradePufETHOnMainnet is Script {
     /**
      * @dev Ethereum Mainnet addresses
      */
@@ -51,7 +51,7 @@ contract UpgradePufETHOnMainnet is BaseScript {
     address PUFFER_VAULT_PROXY = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address PUFFER_DEPOSITOR_PROXY = 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF;
 
-    IPufferOracle PUFFER_ORACLE = IPufferOracle(address(11)); // TBD
+    IPufferOracle PUFFER_ORACLE = IPufferOracle(0x72421d0ab01Ce8e1E81d4B0b919322b0Db81ae3B); // @todo update
     AccessManager ACCESS_MANAGER = AccessManager(0x8c1686069474410E6243425f4a10177a94EBEE11);
 
     // WETH
@@ -66,7 +66,8 @@ contract UpgradePufETHOnMainnet is BaseScript {
     IStrategy STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
     IEigenLayer EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
 
-    function run() public broadcast {
+    function run() public {
+        vm.startBroadcast();
         // Deploy implementation contracts
         PufferVaultV2 pufferVaultImplementation = new PufferVaultV2({
             stETH: ST_ETH,
@@ -83,34 +84,34 @@ contract UpgradePufETHOnMainnet is BaseScript {
             new PufferDepositorV2({ stETH: ST_ETH, pufferVault: PufferVaultV2(payable(PUFFER_VAULT_PROXY)) });
         vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
 
-        bytes memory pufferVaultUpgradeCalldata = abi.encodeWithSelector(
-            UUPSUpgradeable.upgradeToAndCall.selector,
-            address(pufferVaultImplementation),
-            abi.encodeCall(PufferVaultV2.initialize, ())
-        );
-        bytes memory pufferDepositorUpgradeCalldata = abi.encodeWithSelector(
-            UUPSUpgradeable.upgradeToAndCall.selector, address(pufferDepositorImplementation), ""
-        );
+        // bytes memory pufferVaultUpgradeCalldata = abi.encodeWithSelector(
+        //     UUPSUpgradeable.upgradeToAndCall.selector,
+        //     address(pufferVaultImplementation),
+        //     abi.encodeCall(PufferVaultV2.initialize, ())
+        // );
+        // bytes memory pufferDepositorUpgradeCalldata = abi.encodeWithSelector(
+        //     UUPSUpgradeable.upgradeToAndCall.selector, address(pufferDepositorImplementation), ""
+        // );
 
-        bytes[] memory accessManagerCalldata = new bytes[](2);
-        accessManagerCalldata[0] =
-            abi.encodeWithSelector(AccessManager.execute.selector, PUFFER_VAULT_PROXY, pufferVaultUpgradeCalldata);
-        accessManagerCalldata[1] = abi.encodeWithSelector(
-            AccessManager.execute.selector, PUFFER_DEPOSITOR_PROXY, pufferDepositorUpgradeCalldata
-        );
+        // bytes[] memory accessManagerCalldata = new bytes[](2);
+        // accessManagerCalldata[0] =
+        //     abi.encodeWithSelector(AccessManager.execute.selector, PUFFER_VAULT_PROXY, pufferVaultUpgradeCalldata);
+        // accessManagerCalldata[1] = abi.encodeWithSelector(
+        //     AccessManager.execute.selector, PUFFER_DEPOSITOR_PROXY, pufferDepositorUpgradeCalldata
+        // );
 
-        bytes[] memory timeLockCalldata = new bytes[](2);
-        timeLockCalldata[0] = abi.encodeWithSelector(
-            Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[0]
-        );
-        timeLockCalldata[1] = abi.encodeWithSelector(
-            Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[1]
-        );
+        // bytes[] memory timeLockCalldata = new bytes[](2);
+        // timeLockCalldata[0] = abi.encodeWithSelector(
+        //     Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[0]
+        // );
+        // timeLockCalldata[1] = abi.encodeWithSelector(
+        //     Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[1]
+        // );
 
-        console.log("TimeLock PufferVaultV2 Upgrade Calldata");
-        console.logBytes(timeLockCalldata[0]);
+        // console.log("TimeLock PufferVaultV2 Upgrade Calldata");
+        // console.logBytes(timeLockCalldata[0]);
 
-        console.log("TimeLock PufferDepositorV2 Upgrade Calldata");
-        console.logBytes(timeLockCalldata[1]);
+        // console.log("TimeLock PufferDepositorV2 Upgrade Calldata");
+        // console.logBytes(timeLockCalldata[1]);
     }
 }

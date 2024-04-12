@@ -209,7 +209,7 @@ contract TestHelper is Test {
             address(pufferDepositor),
             abi.encodeCall(
                 UUPSUpgradeable.upgradeToAndCall,
-                (address(newDepositorImplementation), abi.encodeCall(PufferDepositorV2.initialize, ()))
+                (address(newDepositorImplementation), "")
             ),
             1
         );
