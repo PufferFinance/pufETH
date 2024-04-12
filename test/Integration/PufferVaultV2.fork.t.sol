@@ -9,6 +9,10 @@ import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract PufferVaultV2ForkTest is TestHelper {
+    // Puffers that send pufETH by mistake
+    address private constant WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
+    address private constant PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
+
     address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
 
     function setUp() public virtual override {
@@ -18,8 +22,16 @@ contract PufferVaultV2ForkTest is TestHelper {
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
+        assertEq(pufferVault.balanceOf(address(pufferVault)), 299.889713214250445236 ether, "pufferVault pufETH");
+        assertEq(pufferVault.balanceOf(WHALE_PUFFER), 0, "WHALE_PUFFER pufETH before");
+        assertEq(pufferVault.balanceOf(PUFFER), 0, "PUFFER pufETH before");
+
         // Upgrade to latest version
         _upgradeToMainnetPuffer();
+
+        assertEq(pufferVault.balanceOf(address(pufferVault)), 0, "vault pufETH");
+        assertEq(pufferVault.balanceOf(WHALE_PUFFER), 299.864287100672938618 ether, "WHALE_PUFFER pufETH after");
+        assertEq(pufferVault.balanceOf(PUFFER), 0.025426113577506618 ether, "PUFFER pufETH after");
     }
 
     // Sanity check

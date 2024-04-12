@@ -94,10 +94,14 @@ contract TestHelper is Test {
 
     // Transfer `token` from `from` to `to` to fill accounts in mainnet fork tests
     modifier giveToken(address from, address token, address to, uint256 amount) {
+        _giveToken(from, token, to, amount);
+        _;
+    }
+
+    function _giveToken(address from, address token, address to, uint256 amount) internal {
         vm.startPrank(from);
         SafeERC20.safeTransfer(IERC20(token), to, amount);
         vm.stopPrank();
-        _;
     }
 
     modifier withCaller(address caller) {
@@ -137,6 +141,14 @@ contract TestHelper is Test {
         vm.label(0x1111111254EEB25477B68fb85Ed929f73A960582, "1Inch router");
         vm.label(MAKER_VAULT, "MAKER Vault");
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
+
+        // Simulate transferring pufETH to the PufferVault by mistake
+        _giveToken(
+            0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222,
+            address(pufferVault),
+            address(pufferVault),
+            299.864287100672938618 ether
+        );
 
         (bob, bobSK) = makeAddrAndKey("bob");
     }
@@ -195,7 +207,10 @@ contract TestHelper is Test {
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));
         timelock.executeTransaction(
             address(pufferDepositor),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
+            abi.encodeCall(
+                UUPSUpgradeable.upgradeToAndCall,
+                (address(newDepositorImplementation), abi.encodeCall(PufferDepositorV2.initialize, ()))
+            ),
             1
         );
 
