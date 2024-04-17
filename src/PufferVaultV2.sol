@@ -64,6 +64,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         _DELEGATION_MANAGER = delegationManager;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
+        // This redundant code is for the Echidna fuzz testing
         _setDailyWithdrawalLimit(100 ether);
         _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
