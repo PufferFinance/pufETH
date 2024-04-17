@@ -142,14 +142,6 @@ contract TestHelper is Test {
         vm.label(MAKER_VAULT, "MAKER Vault");
         vm.label(0x93c4b944D05dfe6df7645A86cd2206016c51564D, "Eigen stETH strategy");
 
-        // Simulate transferring pufETH to the PufferVault by mistake
-        _giveToken(
-            0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222,
-            address(pufferVault),
-            address(pufferVault),
-            299.864287100672938618 ether
-        );
-
         (bob, bobSK) = makeAddrAndKey("bob");
     }
 
