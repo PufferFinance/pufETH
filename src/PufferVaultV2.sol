@@ -275,6 +275,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         restricted
         returns (uint256[] memory requestIds)
     {
+        require(amounts.length != 0);
         VaultStorage storage $ = _getPufferVaultStorage();
 
         uint256 lockedAmount;
@@ -299,6 +300,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @param requestIds An array of request IDs for the withdrawals
      */
     function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
+        require(requestIds.length != 0);
         VaultStorage storage $ = _getPufferVaultStorage();
 
         // ETH balance before the claim
