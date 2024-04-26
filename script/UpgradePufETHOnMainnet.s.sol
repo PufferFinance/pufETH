@@ -3,27 +3,16 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { Timelock } from "../src/Timelock.sol";
-import { NoImplementation } from "../src/NoImplementation.sol";
-import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { stETHMock } from "../test/mocks/stETHMock.sol";
-import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
-import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
-import { WETH9 } from "../test/mocks/WETH9.sol";
-import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 
 /**
@@ -43,10 +32,6 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  *         PK=${deployer_pk} forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --rpc-url=... --broadcast
  */
 contract UpgradePufETHOnMainnet is Script {
-    /**
-     * @dev Ethereum Mainnet addresses
-     */
-
     // Puffer
     address PUFFER_VAULT_PROXY = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address PUFFER_DEPOSITOR_PROXY = 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF;
@@ -82,36 +67,7 @@ contract UpgradePufETHOnMainnet is Script {
 
         PufferDepositorV2 pufferDepositorImplementation =
             new PufferDepositorV2({ stETH: ST_ETH, pufferVault: PufferVaultV2(payable(PUFFER_VAULT_PROXY)) });
+
         vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
-
-        // bytes memory pufferVaultUpgradeCalldata = abi.encodeWithSelector(
-        //     UUPSUpgradeable.upgradeToAndCall.selector,
-        //     address(pufferVaultImplementation),
-        //     abi.encodeCall(PufferVaultV2.initialize, ())
-        // );
-        // bytes memory pufferDepositorUpgradeCalldata = abi.encodeWithSelector(
-        //     UUPSUpgradeable.upgradeToAndCall.selector, address(pufferDepositorImplementation), ""
-        // );
-
-        // bytes[] memory accessManagerCalldata = new bytes[](2);
-        // accessManagerCalldata[0] =
-        //     abi.encodeWithSelector(AccessManager.execute.selector, PUFFER_VAULT_PROXY, pufferVaultUpgradeCalldata);
-        // accessManagerCalldata[1] = abi.encodeWithSelector(
-        //     AccessManager.execute.selector, PUFFER_DEPOSITOR_PROXY, pufferDepositorUpgradeCalldata
-        // );
-
-        // bytes[] memory timeLockCalldata = new bytes[](2);
-        // timeLockCalldata[0] = abi.encodeWithSelector(
-        //     Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[0]
-        // );
-        // timeLockCalldata[1] = abi.encodeWithSelector(
-        //     Timelock.queueTransaction.selector, address(ACCESS_MANAGER), accessManagerCalldata[1]
-        // );
-
-        // console.log("TimeLock PufferVaultV2 Upgrade Calldata");
-        // console.logBytes(timeLockCalldata[0]);
-
-        // console.log("TimeLock PufferDepositorV2 Upgrade Calldata");
-        // console.logBytes(timeLockCalldata[1]);
     }
 }
