@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
@@ -21,15 +20,7 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  * @notice Deploys PufferPoolV2 and Contracts
  * @dev
  *
- *
- *         NOTE:
- *
- *         If you ran the deployment script, but did not `--broadcast` the transaction, it will still update your local chainId-deployment.json file.
- *         Other scripts will fail because addresses will be updated in deployments file, but the deployment never happened.
- *
- *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
- *
- *         PK=${deployer_pk} forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --rpc-url=... --broadcast
+ *         forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --private-key=... --rpc-url=... --broadcast
  */
 contract UpgradePufETHOnMainnet is Script {
     // Puffer
