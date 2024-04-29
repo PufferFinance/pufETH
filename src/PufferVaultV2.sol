@@ -59,9 +59,9 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
         // This redundant code is for the Echidna fuzz testing
-        _setDailyWithdrawalLimit(100 ether);
+        _setDailyWithdrawalLimit(0);
         _updateDailyWithdrawals(0);
-        _setExitFeeBasisPoints(100); // 1%
+        _setExitFeeBasisPoints(0);
         _disableInitializers();
     }
 
@@ -76,7 +76,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         erc4626Storage._asset = _WETH;
         _setDailyWithdrawalLimit(0);
         _updateDailyWithdrawals(0);
-        _setExitFeeBasisPoints(100); // 1%
+        _setExitFeeBasisPoints(0);
 
         // Return pufETH to Puffers
         // If statement is necessary because we don't wan to change existing tests that rely on the original behavior
