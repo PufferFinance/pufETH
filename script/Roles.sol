@@ -9,6 +9,7 @@ uint64 constant ROLE_ID_UPGRADER = 1;
 // Role assigned to Operations Multisig
 uint64 constant ROLE_ID_OPERATIONS_MULTISIG = 22;
 uint64 constant ROLE_ID_OPERATIONS_PAYMASTER = 23;
+uint64 constant ROLE_ID_OPERATIONS_COORDINATOR= 24;
 
 // Role assigned to the Puffer Protocol
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;

@@ -22,6 +22,14 @@ contract PufferVaultV2ForkTest is TestHelper {
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
+        // Simulate transferring pufETH to the PufferVault by mistake
+        _giveToken(
+            0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222,
+            address(pufferVault),
+            address(pufferVault),
+            299.864287100672938618 ether
+        );
+
         assertEq(pufferVault.balanceOf(address(pufferVault)), 299.889713214250445236 ether, "pufferVault pufETH");
         assertEq(pufferVault.balanceOf(WHALE_PUFFER), 0, "WHALE_PUFFER pufETH before");
         assertEq(pufferVault.balanceOf(PUFFER), 0, "PUFFER pufETH before");

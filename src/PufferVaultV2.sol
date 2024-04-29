@@ -58,7 +58,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         _DELEGATION_MANAGER = delegationManager;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        _setDailyWithdrawalLimit(0);
+        // This redundant code is for the Echidna fuzz testing
+        _setDailyWithdrawalLimit(100 ether);
         _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
         _disableInitializers();
@@ -302,6 +303,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         for (uint256 i = 0; i < requestIds.length; ++i) {
             // .get reverts if requestId is not present
             expectedWithdrawal += $.lidoWithdrawalAmounts.get(requestIds[i]);
+            $.lidoWithdrawalAmounts.remove(requestIds[i]);
 
             // slither-disable-next-line calls-loop
             _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
