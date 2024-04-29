@@ -54,8 +54,9 @@ contract GenerateAccessManagerCallData is Script {
 
     function _getDaoSelectorsCalldataCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // DAO selectors
-        bytes4[] memory daoSelectors = new bytes4[](1);
+        bytes4[] memory daoSelectors = new bytes4[](2);
         daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
+        daoSelectors[1] = PufferVaultV2.setExitFeeBasisPoints.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, daoSelectors, ROLE_ID_DAO
