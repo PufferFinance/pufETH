@@ -20,14 +20,14 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  * @notice Deploys PufferPoolV2 and Contracts
  * @dev
  *
- *         forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --private-key=... --rpc-url=... --broadcast
+ *         forge script script/UpgradePufETHOnMainnet.s.sol:UpgradePufETHOnMainnet -vvvv --private-key=... --rpc-url=... --broadcast --slow
  */
 contract UpgradePufETHOnMainnet is Script {
     // Puffer
     address PUFFER_VAULT_PROXY = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address PUFFER_DEPOSITOR_PROXY = 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF;
 
-    IPufferOracle PUFFER_ORACLE = IPufferOracle(0x72421d0ab01Ce8e1E81d4B0b919322b0Db81ae3B); // @todo update
+    IPufferOracle PUFFER_ORACLE = IPufferOracle(0x8eFd1Dc43AD073232F3e2924e22F173879119489);
     AccessManager ACCESS_MANAGER = AccessManager(0x8c1686069474410E6243425f4a10177a94EBEE11);
 
     // WETH
