@@ -521,9 +521,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         uint256 middlewareTimesIndex
     ) external override { }
 
-    // Not needed anymore
-    function depositToEigenLayer(uint256 amount) external override { }
-
     /**
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
      * Used in {IERC4626-withdraw}.
