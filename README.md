@@ -61,6 +61,7 @@ For more detailed information on the contract deployments (Mainnet, Holesky, etc
 - BlockSec: [v1](./audits/BlockSec-pufETH-v1.pdf), [v2](https://github.com/PufferFinance/PufferPool/blob/polish-docs/docs/audits/Blocksec_audit_April2024.pdf)
 - SlowMist: [v1](./audits/SlowMist-pufETH-v1.pdf), v2
 - Quantstamp: [v1](./audits/Quantstamp-pufETH-v1.pdf)
+- Immunefi [Boost](https://immunefi.com/boost/pufferfinance-boost/): [v1](./audits/Immunefi_Boost_pufETH_v1.pdf)
 - Trail of Bits: [v2](https://github.com/trailofbits/publications/blob/master/reviews/2024-03-pufferfinance-securityreview.pdf)
 - Nethermind: [v2](https://github.com/NethermindEth/PublicAuditReports/blob/main/NM0202-FINAL_PUFFER.pdf)
 - Creed: [v2](https://github.com/PufferFinance/PufferPool/blob/polish-docs/docs/audits/Creed_Puffer_Finance_Audit_April2024.pdf)
