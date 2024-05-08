@@ -21,3 +21,6 @@ uint64 constant ROLE_ID_PUFFER_ORACLE = 999;
 uint64 constant PUBLIC_ROLE = type(uint64).max;
 // Admin role (defined in AccessManager.sol) (only Timelock.sol must have this role)
 uint64 constant ADMIN_ROLE = 0;
+
+// Whitelister role for AVSContractsRegistry
+uint64 constant ROLE_ID_AVS_COORDINATOR_WHITELISTER = 5;
