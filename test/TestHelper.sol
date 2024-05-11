@@ -199,10 +199,7 @@ contract TestHelper is Test {
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));
         timelock.executeTransaction(
             address(pufferDepositor),
-            abi.encodeCall(
-                UUPSUpgradeable.upgradeToAndCall,
-                (address(newDepositorImplementation), "")
-            ),
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
             1
         );
 

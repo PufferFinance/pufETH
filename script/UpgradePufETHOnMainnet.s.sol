@@ -27,7 +27,7 @@ contract UpgradePufETHOnMainnet is Script {
     address PUFFER_VAULT_PROXY = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
     address PUFFER_DEPOSITOR_PROXY = 0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF;
 
-    IPufferOracle PUFFER_ORACLE = IPufferOracle(0x8eFd1Dc43AD073232F3e2924e22F173879119489);
+    IPufferOracle PUFFER_ORACLE = IPufferOracle(0x8eFd1Dc43AD073232F3e2924e22F173879119489); // <-------------------- @TODO UPDATE
     AccessManager ACCESS_MANAGER = AccessManager(0x8c1686069474410E6243425f4a10177a94EBEE11);
 
     // WETH
@@ -56,9 +56,9 @@ contract UpgradePufETHOnMainnet is Script {
         });
         vm.label(address(pufferVaultImplementation), "PufferVaultImplementation");
 
-        PufferDepositorV2 pufferDepositorImplementation =
-            new PufferDepositorV2({ stETH: ST_ETH, pufferVault: PufferVaultV2(payable(PUFFER_VAULT_PROXY)) });
+        // PufferDepositorV2 pufferDepositorImplementation =
+        //     new PufferDepositorV2({ stETH: ST_ETH, pufferVault: PufferVaultV2(payable(PUFFER_VAULT_PROXY)) });
 
-        vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
+        // vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
     }
 }
