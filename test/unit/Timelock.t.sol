@@ -134,6 +134,26 @@ contract TimelockTest is Test {
         timelock.executeTransaction(address(timelock), callData, operationId);
     }
 
+    function test_community_transaction() public {
+        vm.startPrank(timelock.OPERATIONS_MULTISIG());
+
+        bytes memory callData = abi.encodeCall(Timelock.setDelay, (15 days));
+
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(timelock), callData, operationId);
+
+        uint256 lockedUntil = block.timestamp + timelock.delay();
+
+        assertTrue(timelock.queue(txHash) != 0, "queued");
+
+        vm.startPrank(timelock.COMMUNITY_MULTISIG());
+        timelock.executeTransaction(address(timelock), callData, operationId);
+
+        assertEq(timelock.queue(txHash), 0, "executed");
+        assertEq(timelock.delay(), 15 days, "updated the delay");
+    }
+
     function test_cancel_reverts_if_caller_unauthorized(address caller) public {
         vm.assume(caller != timelock.OPERATIONS_MULTISIG());
         vm.assume(caller != address(timelock));
@@ -243,5 +263,34 @@ contract TimelockTest is Test {
         timelock.executeTransaction(address(timelock), callData, 1234);
 
         assertEq(newPauser, timelock.pauserMultisig(), "pauser did not change");
+    }
+
+    function test_execute_fails_due_to_gas() public {
+        vm.startPrank(timelock.OPERATIONS_MULTISIG());
+
+        bytes memory callData = abi.encodeCall(this.gasConsumingFunc, ());
+
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(this), callData, operationId);
+
+        uint256 lockedUntil = block.timestamp + timelock.delay();
+
+        vm.warp(lockedUntil + 20);
+
+        uint256 gasToUse = 214_640;
+
+        vm.expectRevert(abi.encodeWithSelector(Timelock.ExecutionFailedAtTarget.selector));
+        timelock.executeTransaction{ gas: gasToUse }(address(this), callData, operationId);
+    }
+
+    function gasConsumingFunc() external {
+        uint256 gasToConsume = 209595;
+        uint256 gasStart = gasleft();
+        for (uint256 i = 0; gasStart - gasleft() < gasToConsume; i++) {
+            assembly {
+                let x := mload(0x1337)
+            }
+        }
     }
 }

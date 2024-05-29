@@ -34,6 +34,11 @@ contract Timelock {
     error Locked(bytes32 txHash, uint256 lockedUntil);
 
     /**
+     * @notice Error to be thrown when an the target call fails
+     */
+    error ExecutionFailedAtTarget();
+
+    /**
      * @notice Emitted when the delay changes from `oldDelay` to `newDelay`
      */
     event DelayChanged(uint256 oldDelay, uint256 newDelay);
@@ -89,6 +94,11 @@ contract Timelock {
      * @notice Minimum delay enforced by the contract
      */
     uint256 public constant MINIMUM_DELAY = 7 days;
+
+    /**
+     * @notice Minimum gas left after doing the target call
+     */
+    uint256 internal constant MINIMUM_GAS = 3000;
 
     /**
      * @notice Timelock delay in seconds
@@ -192,6 +202,10 @@ contract Timelock {
         external
         returns (bool success, bytes memory returnData)
     {
+        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
+        uint256 lockedUntil = queue[txHash];
+        queue[txHash] = 0;
+
         // Community Multisig can do things without any delay
         if (msg.sender == COMMUNITY_MULTISIG) {
             return _executeTransaction(target, callData);
@@ -202,9 +216,6 @@ contract Timelock {
             revert Unauthorized();
         }
 
-        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
-        uint256 lockedUntil = queue[txHash];
-
         // slither-disable-next-line incorrect-equality
         if (lockedUntil == 0) {
             revert InvalidTransaction(txHash);
@@ -214,8 +225,11 @@ contract Timelock {
             revert Locked(txHash, lockedUntil);
         }
 
-        queue[txHash] = 0;
         (success, returnData) = _executeTransaction(target, callData);
+
+        if (!success) {
+            revert ExecutionFailedAtTarget();
+        }
 
         emit TransactionExecuted(txHash, target, callData, operationId);
 
