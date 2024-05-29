@@ -44,12 +44,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      */
     IDelegationManager internal immutable _DELEGATION_MANAGER;
 
-    /**
-     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
-     */
-    address private constant WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
-    address private constant PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
-
     constructor(
         IStETH stETH,
         IWETH weth,
@@ -65,9 +59,9 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
         // This redundant code is for the Echidna fuzz testing
-        _setDailyWithdrawalLimit(100 ether);
+        _setDailyWithdrawalLimit(0);
         _updateDailyWithdrawals(0);
-        _setExitFeeBasisPoints(100); // 1%
+        _setExitFeeBasisPoints(0);
         _disableInitializers();
     }
 
@@ -80,22 +74,9 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        _setDailyWithdrawalLimit(100 ether);
+        _setDailyWithdrawalLimit(0);
         _updateDailyWithdrawals(0);
-        _setExitFeeBasisPoints(100); // 1%
-
-        // Return pufETH to Puffers
-        // If statement is necessary because we don't wan to change existing tests that rely on the original behavior
-        if (balanceOf(address(this)) > 299 ether) {
-            // Must do this.transfer (external call) because ERC20Upgradeable uses Context::_msgSender() (the msg.sender of the .initialize external call)
-
-            // https://etherscan.io/tx/0x2e02a00dbc8ba48cd65a6802d174c210d0c4869806a564cca0088e42d382b2ff
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(WHALE_PUFFER, 299.864287100672938618 ether);
-            // https://etherscan.io/tx/0x7d309dc26cb3f0226e480e0d4c598707faee59d58bfc68bedb75cf5055ac274a
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(PUFFER, 25426113577506618);
-        }
+        _setExitFeeBasisPoints(0);
     }
 
     /**
@@ -528,9 +509,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         IERC20[] calldata tokens,
         uint256 middlewareTimesIndex
     ) external override { }
-
-    // Not needed anymore
-    function depositToEigenLayer(uint256 amount) external override { }
 
     /**
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
