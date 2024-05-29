@@ -10,6 +10,7 @@ import { NoImplementation } from "../src/NoImplementation.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 /**
  * @title DeployL2XPufETH
@@ -25,7 +26,7 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/DeployL2XPufETH.s.sol:DeployL2XPufETH -vvvv --rpc-url=... --broadcast
+ *         PK=a990c824d7f6928806d93674ef4acd4b240ad60c9ce575777c87b36f9a3c32a8 forge script script/DeployL2XPufETH.s.sol:DeployL2XPufETH -vvvv --rpc-url=https://holesky.gateway.tenderly.co/5ovlGAOeSvuI3UcQD2PoSD --broadcast
  */
 contract DeployL2XPufETH is BaseScript {
     address operationsMultisig = vm.envOr("OPERATIONS_MULTISIG", makeAddr("operationsMultisig"));
@@ -57,5 +58,21 @@ contract DeployL2XPufETH is BaseScript {
         NoImplementation(payable(address(xPufETH))).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(XERC20PufferVault.initialize, (address(accessManager)))
         );
+
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = XERC20PufferVault.setLockbox.selector;
+        selectors[1] = XERC20PufferVault.setLimits.selector;
+
+        // Setup Access
+        accessManager.setTargetFunctionRole(address(xPufETH), selectors, ROLE_ID_DAO);
+
+        accessManager.grantRole(accessManager.ADMIN_ROLE(), address(timelock), 0);
+
+        // replace with dao and ops multisigs for mainnet
+        accessManager.grantRole(ROLE_ID_DAO, _broadcaster, 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, _broadcaster, 0);
+
+        // revoke on mainnet
+        // accessManager.revokeRole(accessManager.ADMIN_ROLE(), _broadcaster);
     }
 }
