@@ -96,11 +96,6 @@ contract Timelock {
     uint256 public constant MINIMUM_DELAY = 7 days;
 
     /**
-     * @notice Minimum gas left after doing the target call
-     */
-    uint256 internal constant MINIMUM_GAS = 3000;
-
-    /**
      * @notice Timelock delay in seconds
      */
     uint256 public delay;
