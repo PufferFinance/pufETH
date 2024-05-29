@@ -39,6 +39,11 @@ contract Timelock {
     error ExecutionFailedAtTarget();
 
     /**
+     * @notice Error to be thrown when an the params are invalid
+     */
+    error InvalidParams();
+
+    /**
      * @notice Emitted when the delay changes from `oldDelay` to `newDelay`
      */
     event DelayChanged(uint256 oldDelay, uint256 newDelay);
@@ -161,6 +166,32 @@ contract Timelock {
 
         for (uint256 i = 0; i < targets.length; ++i) {
             callDatas[i] = abi.encodeCall(AccessManager.setTargetClosed, (targets[i], true));
+        }
+
+        ACCESS_MANAGER.multicall(callDatas);
+    }
+
+    /**
+     * @notice Pauses the system by closing access to specified targets selectors
+     * @param targets An array of addresses to which access will be paused
+     * @param selectors An array of selectors to which access will be paused
+     */
+    function pauseSelectors(address[] calldata targets, bytes4[][] calldata selectors) public {
+        if (targets.length != selectors.length) {
+            revert InvalidParams();
+        }
+
+        // Community multisig can call this by via executeTransaction
+        if (msg.sender != pauserMultisig && msg.sender != address(this)) {
+            revert Unauthorized();
+        }
+
+        bytes[] memory callDatas = new bytes[](targets.length);
+
+        for (uint256 i = 0; i < targets.length; ++i) {
+            callDatas[i] = abi.encodeCall(
+                AccessManager.setTargetFunctionRole, (targets[i], selectors[i], ACCESS_MANAGER.ADMIN_ROLE())
+            );
         }
 
         ACCESS_MANAGER.multicall(callDatas);

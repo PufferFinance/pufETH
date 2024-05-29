@@ -249,6 +249,33 @@ contract TimelockTest is Test {
         assertTrue(!canCall, "should not be able to call");
     }
 
+    function test_pause_depositor_slectors(address caller) public {
+        vm.startPrank(timelock.pauserMultisig());
+        vm.assume(caller != address(timelock));
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(pufferDepositor);
+
+        bytes4[][] memory selectors = new bytes4[][](1);
+        selectors[0] = new bytes4[](1);
+
+        selectors[0][0] = PufferDepositor.swapAndDeposit.selector;
+
+        timelock.pauseSelectors(targets, selectors);
+
+        (bool canCall, uint32 delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.swapAndDeposit.selector);
+        assertTrue(!canCall, "should not be able to call");
+
+        (canCall, delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.swapAndDepositWithPermit.selector);
+        assertTrue(canCall, "should able to call");
+
+        (canCall, delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.depositWstETH.selector);
+        assertTrue(canCall, "should be able to call");
+    }
+
     function test_change_pauser() public {
         vm.startPrank(timelock.COMMUNITY_MULTISIG());
 
