@@ -4,8 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
-import { XERC20PufferVault } from "../src/l2/XERC20PufferVault.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { xPufETH } from "../src/l2/xPufETH.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
@@ -33,9 +32,9 @@ contract DeployL2XPufETH is BaseScript {
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
     address communityMultisig = vm.envOr("COMMUNITY_MULTISIG", makeAddr("communityMultisig"));
 
-    address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; // change for mainnet
-    uint256 _MINTING_LIMIT = 1000 * 1e18;
-    uint256 _BURNING_LIMIT = 1000 * 1e18;
+    address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
+    uint256 _MINTING_LIMIT = 1000 * 1e18; //@todo
+    uint256 _BURNING_LIMIT = 1000 * 1e18; //@todo
 
     function run() public broadcast {
         AccessManager accessManager = new AccessManager(_broadcaster);
@@ -54,40 +53,45 @@ contract DeployL2XPufETH is BaseScript {
             initialDelay: 7 days
         });
 
-        console.log("AccessManager", address(timelock));
+        console.log("Timelock", address(timelock));
 
-        XERC20PufferVault newImplementation = new XERC20PufferVault();
-        console.log("XERC20PufferVault", address(newImplementation));
+        xPufETH newImplementation = new xPufETH();
+        console.log("XERC20PufferVaultImplementation", address(newImplementation));
 
         bytes32 xPufETHSalt = bytes32("xPufETH");
 
-        ERC1967Proxy xPufETH = new ERC1967Proxy{ salt: xPufETHSalt }(
-            address(newImplementation), abi.encodeCall(XERC20PufferVault.initialize, (address(accessManager)))
-        );
-        console.log("xPufETHProxy", address(xPufETH));
-
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
+        ERC1967Proxy xPufETHProxy = new ERC1967Proxy{ salt: xPufETHSalt }(
+            address(newImplementation), abi.encodeCall(xPufETH.initialize, (address(accessManager)))
+        );
+        console.log("xPufETHProxy", address(xPufETHProxy));
 
-        bytes memory data =
-            abi.encodeWithSelector(XERC20PufferVault.setLimits.selector, _CONNEXT, _MINTING_LIMIT, _BURNING_LIMIT);
+        bytes memory data = abi.encodeWithSelector(xPufETH.setLimits.selector, _CONNEXT, _MINTING_LIMIT, _BURNING_LIMIT);
 
-        accessManager.execute(address(xPufETH), data);
+        accessManager.execute(address(xPufETHProxy), data);
 
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = XERC20PufferVault.setLockbox.selector;
-        selectors[1] = XERC20PufferVault.setLimits.selector;
+        bytes4[] memory daoSelectors = new bytes4[](2);
+        daoSelectors[0] = xPufETH.setLockbox.selector;
+        daoSelectors[1] = xPufETH.setLimits.selector;
+
+        bytes4[] memory publicSelectors = new bytes4[](2);
+        publicSelectors[0] = xPufETH.mint.selector;
+        publicSelectors[1] = xPufETH.burn.selector;
 
         // Setup Access
-        accessManager.setTargetFunctionRole(address(xPufETH), selectors, ROLE_ID_DAO);
+        // Public selectors
+        accessManager.setTargetFunctionRole(address(xPufETHProxy), publicSelectors, accessManager.PUBLIC_ROLE());
+        // Dao selectors
+        accessManager.setTargetFunctionRole(address(xPufETHProxy), daoSelectors, ROLE_ID_DAO);
 
         accessManager.grantRole(accessManager.ADMIN_ROLE(), address(timelock), 0);
 
-        // replace with dao and ops multisigs for mainnet
+        //@todo replace with dao and ops multisigs for mainnet
         accessManager.grantRole(ROLE_ID_DAO, _broadcaster, 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, _broadcaster, 0);
 
-        // revoke on mainnet
+        //@todo revoke on mainnet
         // accessManager.revokeRole(accessManager.ADMIN_ROLE(), _broadcaster);
     }
 }

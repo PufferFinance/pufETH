@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.4 <0.9.0;
 
-import { IXERC20 } from "./interface/IXERC20.sol";
+import { IXERC20 } from "../interface/IXERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC20PermitUpgradeable } from
     "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import { XERC20PufferVaultStorage } from "./XERC20PufferVaultStorage.sol";
+import { xPufETHStorage } from "./xPufETHStorage.sol";
 
-contract XERC20PufferVault is
-    XERC20PufferVaultStorage,
-    IXERC20,
-    AccessManagedUpgradeable,
-    ERC20PermitUpgradeable,
-    UUPSUpgradeable
-{
+/**
+ * @title xPufETH
+ * @author Puffer Finance
+ * @dev It is an XERC20 implementation of pufETH token. This token is to be deployed to L2 chains.
+ * @custom:security-contact security@puffer.fi
+ */
+contract xPufETH is xPufETHStorage, IXERC20, AccessManagedUpgradeable, ERC20PermitUpgradeable, UUPSUpgradeable {
     /**
      * @notice The duration it takes for the limits to fully replenish
      */
@@ -36,8 +36,9 @@ contract XERC20PufferVault is
      * @dev Can only be called by a bridge
      * @param user The address of the user who needs tokens minted
      * @param amount The amount of tokens being minted
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function mint(address user, uint256 amount) public {
+    function mint(address user, uint256 amount) external restricted {
         _mintWithCaller(msg.sender, user, amount);
     }
 
@@ -46,8 +47,9 @@ contract XERC20PufferVault is
      * @dev Can only be called by a bridge
      * @param user The address of the user who needs tokens burned
      * @param amount The amount of tokens being burned
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function burn(address user, uint256 amount) public {
+    function burn(address user, uint256 amount) external restricted {
         if (msg.sender != user) {
             _spendAllowance(user, msg.sender, amount);
         }
@@ -58,10 +60,11 @@ contract XERC20PufferVault is
     /**
      * @notice Sets the lockbox address
      *
+     * @dev Restricted to the DAO
      * @param lockboxAddress The address of the lockbox
      */
-    function setLockbox(address lockboxAddress) public restricted {
-        VaultStorage storage $ = _getPufferVaultStorage();
+    function setLockbox(address lockboxAddress) external restricted {
+        xPufETH storage $ = _getXPufETHStorage();
         $.lockbox = lockboxAddress;
 
         emit LockboxSet(lockboxAddress);
@@ -69,7 +72,8 @@ contract XERC20PufferVault is
 
     /**
      * @notice Updates the limits of any bridge
-     * @dev Can only be called by the owner
+     *
+     * @dev Restricted to the DAO
      * @param mintingLimit The updated minting limit we are setting to the bridge
      * @param burningLimit The updated burning limit we are setting to the bridge
      * @param bridge The address of the bridge we are setting the limits too
@@ -91,7 +95,7 @@ contract XERC20PufferVault is
      * @return limit The limit the bridge has
      */
     function mintingMaxLimitOf(address bridge) public view returns (uint256 limit) {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         limit = $.bridges[bridge].minterParams.maxLimit;
     }
 
@@ -102,7 +106,7 @@ contract XERC20PufferVault is
      * @return limit The limit the bridge has
      */
     function burningMaxLimitOf(address bridge) public view returns (uint256 limit) {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         limit = $.bridges[bridge].burnerParams.maxLimit;
     }
 
@@ -113,7 +117,7 @@ contract XERC20PufferVault is
      * @return limit The limit the bridge has
      */
     function mintingCurrentLimitOf(address bridge) public view returns (uint256 limit) {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         limit = _getCurrentLimit(
             $.bridges[bridge].minterParams.currentLimit,
             $.bridges[bridge].minterParams.maxLimit,
@@ -129,7 +133,7 @@ contract XERC20PufferVault is
      * @return limit The limit the bridge has
      */
     function burningCurrentLimitOf(address bridge) public view returns (uint256 limit) {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         limit = _getCurrentLimit(
             $.bridges[bridge].burnerParams.currentLimit,
             $.bridges[bridge].burnerParams.maxLimit,
@@ -144,7 +148,7 @@ contract XERC20PufferVault is
      * @param change The change in the limit
      */
     function _useMinterLimits(address bridge, uint256 change) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         uint256 currentLimit = mintingCurrentLimitOf(bridge);
         $.bridges[bridge].minterParams.timestamp = block.timestamp;
         $.bridges[bridge].minterParams.currentLimit = currentLimit - change;
@@ -156,7 +160,7 @@ contract XERC20PufferVault is
      * @param change The change in the limit
      */
     function _useBurnerLimits(address bridge, uint256 change) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         uint256 currentLimit = burningCurrentLimitOf(bridge);
         $.bridges[bridge].burnerParams.timestamp = block.timestamp;
         $.bridges[bridge].burnerParams.currentLimit = currentLimit - change;
@@ -169,7 +173,7 @@ contract XERC20PufferVault is
      * @param limit The updated limit we are setting to the bridge
      */
     function _changeMinterLimit(address bridge, uint256 limit) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         uint256 oldLimit = $.bridges[bridge].minterParams.maxLimit;
         uint256 currentLimit = mintingCurrentLimitOf(bridge);
         $.bridges[bridge].minterParams.maxLimit = limit;
@@ -187,7 +191,7 @@ contract XERC20PufferVault is
      * @param limit The updated limit we are setting to the bridge
      */
     function _changeBurnerLimit(address bridge, uint256 limit) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         uint256 oldLimit = $.bridges[bridge].burnerParams.maxLimit;
         uint256 currentLimit = burningCurrentLimitOf(bridge);
         $.bridges[bridge].burnerParams.maxLimit = limit;
@@ -204,21 +208,21 @@ contract XERC20PufferVault is
      * @param limit The new limit
      * @param oldLimit The old limit
      * @param currentLimit The current limit
-     * @return _newCurrentLimit The new current limit
+     * @return newCurrentLimit The new current limit
      */
     function _calculateNewCurrentLimit(uint256 limit, uint256 oldLimit, uint256 currentLimit)
         internal
         pure
-        returns (uint256 _newCurrentLimit)
+        returns (uint256 newCurrentLimit)
     {
-        uint256 _difference;
+        uint256 difference;
 
         if (oldLimit > limit) {
-            _difference = oldLimit - limit;
-            _newCurrentLimit = currentLimit > _difference ? currentLimit - _difference : 0;
+            difference = oldLimit - limit;
+            newCurrentLimit = currentLimit > difference ? currentLimit - difference : 0;
         } else {
-            _difference = limit - oldLimit;
-            _newCurrentLimit = currentLimit + _difference;
+            difference = limit - oldLimit;
+            newCurrentLimit = currentLimit + difference;
         }
     }
 
@@ -256,7 +260,7 @@ contract XERC20PufferVault is
      * @param amount The amount to burn
      */
     function _burnWithCaller(address caller, address user, uint256 amount) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         if (caller != $.lockbox) {
             uint256 currentLimit = burningCurrentLimitOf(caller);
             if (currentLimit < amount) revert IXERC20_NotHighEnoughLimits();
@@ -273,7 +277,7 @@ contract XERC20PufferVault is
      * @param amount The amount to mint
      */
     function _mintWithCaller(address caller, address user, uint256 amount) internal {
-        VaultStorage storage $ = _getPufferVaultStorage();
+        xPufETH storage $ = _getXPufETHStorage();
         if (caller != $.lockbox) {
             uint256 currentLimit = mintingCurrentLimitOf(caller);
             if (currentLimit < amount) revert IXERC20_NotHighEnoughLimits();
