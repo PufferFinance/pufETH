@@ -211,6 +211,7 @@ contract Timelock {
 
         bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
 
+        // slither-disable-next-line incorrect-equality
         if (queue[txHash] == 0) {
             revert InvalidTransaction(txHash);
         }
@@ -237,6 +238,7 @@ contract Timelock {
         if (msg.sender == OPERATIONS_MULTISIG) {
             uint256 lockedUntil = queue[txHash];
             // Operations Multisig must follow queue and delay rules
+            // slither-disable-next-line incorrect-equality
             if (lockedUntil == 0) {
                 revert InvalidTransaction(txHash);
             }
