@@ -2,6 +2,7 @@
 pragma solidity >=0.8.18;
 
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Timelock
@@ -9,6 +10,8 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract Timelock {
+    using Address for address;
+
     /**
      * @notice Error to be thrown when a bad address is encountered
      */
@@ -32,6 +35,11 @@ contract Timelock {
      * @param lockedUntil The timestamp when the transaction can be executed
      */
     error Locked(bytes32 txHash, uint256 lockedUntil);
+
+    /**
+     * @notice Error to be thrown when an the params are invalid
+     */
+    error InvalidParams();
 
     /**
      * @notice Emitted when the delay changes from `oldDelay` to `newDelay`
@@ -155,7 +163,35 @@ contract Timelock {
         bytes[] memory callDatas = new bytes[](targets.length);
 
         for (uint256 i = 0; i < targets.length; ++i) {
+            // slither-disable-next-line calls-loop
             callDatas[i] = abi.encodeCall(AccessManager.setTargetClosed, (targets[i], true));
+        }
+
+        ACCESS_MANAGER.multicall(callDatas);
+    }
+
+    /**
+     * @notice Pauses the system by closing access to specified targets selectors
+     * @param targets An array of addresses to which access will be paused
+     * @param selectors An array of selectors to which access will be paused
+     */
+    function pauseSelectors(address[] calldata targets, bytes4[][] calldata selectors) public {
+        if (targets.length != selectors.length) {
+            revert InvalidParams();
+        }
+
+        // Community multisig can call this by via executeTransaction
+        if (msg.sender != pauserMultisig && msg.sender != address(this)) {
+            revert Unauthorized();
+        }
+
+        bytes[] memory callDatas = new bytes[](targets.length);
+
+        for (uint256 i = 0; i < targets.length; ++i) {
+            // slither-disable-next-line calls-loop
+            callDatas[i] = abi.encodeCall(
+                AccessManager.setTargetFunctionRole, (targets[i], selectors[i], ACCESS_MANAGER.ADMIN_ROLE())
+            );
         }
 
         ACCESS_MANAGER.multicall(callDatas);
@@ -174,6 +210,12 @@ contract Timelock {
         }
 
         bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
+
+        // slither-disable-next-line incorrect-equality
+        if (queue[txHash] == 0) {
+            revert InvalidTransaction(txHash);
+        }
+
         queue[txHash] = 0;
 
         emit TransactionCanceled(txHash, target, callData, operationId);
@@ -185,41 +227,36 @@ contract Timelock {
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction
      * @param operationId The id of the operation used to identify the transaction
-     * @return success A boolean indicating whether the transaction was successful
      * @return returnData The data returned by the transaction
      */
     function executeTransaction(address target, bytes calldata callData, uint256 operationId)
         external
-        returns (bool success, bytes memory returnData)
+        returns (bytes memory returnData)
     {
-        // Community Multisig can do things without any delay
-        if (msg.sender == COMMUNITY_MULTISIG) {
-            return _executeTransaction(target, callData);
-        }
+        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
 
-        // Operations multisig needs to queue it and then execute after a delay
-        if (msg.sender != OPERATIONS_MULTISIG) {
+        if (msg.sender == OPERATIONS_MULTISIG) {
+            uint256 lockedUntil = queue[txHash];
+            // Operations Multisig must follow queue and delay rules
+            // slither-disable-next-line incorrect-equality
+            if (lockedUntil == 0) {
+                revert InvalidTransaction(txHash);
+            }
+            if (block.timestamp < lockedUntil) {
+                revert Locked(txHash, lockedUntil);
+            }
+        } else if (msg.sender != COMMUNITY_MULTISIG) {
+            // All other senders are unauthorized
             revert Unauthorized();
         }
 
-        bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
-        uint256 lockedUntil = queue[txHash];
-
-        // slither-disable-next-line incorrect-equality
-        if (lockedUntil == 0) {
-            revert InvalidTransaction(txHash);
-        }
-
-        if (block.timestamp < lockedUntil) {
-            revert Locked(txHash, lockedUntil);
-        }
-
         queue[txHash] = 0;
-        (success, returnData) = _executeTransaction(target, callData);
+
+        // Execute the transaction
+        // slither-disable-next-line arbitrary-send-eth
+        returnData = target.functionCall(callData);
 
         emit TransactionExecuted(txHash, target, callData, operationId);
-
-        return (success, returnData);
     }
 
     /**
@@ -258,11 +295,6 @@ contract Timelock {
         }
         emit DelayChanged(delay, newDelay);
         delay = newDelay;
-    }
-
-    function _executeTransaction(address target, bytes calldata callData) internal returns (bool, bytes memory) {
-        // slither-disable-next-line arbitrary-send-eth
-        return target.call(callData);
     }
 
     function _validateAddresses(

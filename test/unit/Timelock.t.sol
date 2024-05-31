@@ -132,6 +132,29 @@ contract TimelockTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidTransaction.selector, txHash));
         timelock.executeTransaction(address(timelock), callData, operationId);
+
+        vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidTransaction.selector, txHash));
+        timelock.cancelTransaction(address(timelock), callData, operationId);
+    }
+
+    function test_community_transaction() public {
+        vm.startPrank(timelock.OPERATIONS_MULTISIG());
+
+        bytes memory callData = abi.encodeCall(Timelock.setDelay, (15 days));
+
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(timelock), callData, operationId);
+
+        uint256 lockedUntil = block.timestamp + timelock.delay();
+
+        assertTrue(timelock.queue(txHash) != 0, "queued");
+
+        vm.startPrank(timelock.COMMUNITY_MULTISIG());
+        timelock.executeTransaction(address(timelock), callData, operationId);
+
+        assertEq(timelock.queue(txHash), 0, "executed");
+        assertEq(timelock.delay(), 15 days, "updated the delay");
     }
 
     function test_cancel_reverts_if_caller_unauthorized(address caller) public {
@@ -176,10 +199,8 @@ contract TimelockTest is Test {
         uint256 operationId = 1234;
 
         // revert if the timelock is too small
-        (bool success, bytes memory returnData) =
-            timelock.executeTransaction(address(timelock), tooSmallDelayCallData, operationId);
-        assertEq(returnData, abi.encodeWithSelector(Timelock.InvalidDelay.selector, 1 days), "return data should fail");
-        assertFalse(success, "should fail");
+        vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidDelay.selector, 1 days));
+        bytes memory returnData = timelock.executeTransaction(address(timelock), tooSmallDelayCallData, operationId);
 
         timelock.executeTransaction(address(timelock), callData, 1234);
 
@@ -229,6 +250,33 @@ contract TimelockTest is Test {
         assertTrue(!canCall, "should not be able to call");
     }
 
+    function test_pause_depositor_slectors(address caller) public {
+        vm.startPrank(timelock.pauserMultisig());
+        vm.assume(caller != address(timelock));
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(pufferDepositor);
+
+        bytes4[][] memory selectors = new bytes4[][](1);
+        selectors[0] = new bytes4[](1);
+
+        selectors[0][0] = PufferDepositor.swapAndDeposit.selector;
+
+        timelock.pauseSelectors(targets, selectors);
+
+        (bool canCall, uint32 delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.swapAndDeposit.selector);
+        assertTrue(!canCall, "should not be able to call");
+
+        (canCall, delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.swapAndDepositWithPermit.selector);
+        assertTrue(canCall, "should able to call");
+
+        (canCall, delay) =
+            accessManager.canCall(caller, address(pufferDepositor), PufferDepositor.depositWstETH.selector);
+        assertTrue(canCall, "should be able to call");
+    }
+
     function test_change_pauser() public {
         vm.startPrank(timelock.COMMUNITY_MULTISIG());
 
@@ -243,5 +291,34 @@ contract TimelockTest is Test {
         timelock.executeTransaction(address(timelock), callData, 1234);
 
         assertEq(newPauser, timelock.pauserMultisig(), "pauser did not change");
+    }
+
+    function test_execute_fails_due_to_gas() public {
+        vm.startPrank(timelock.OPERATIONS_MULTISIG());
+
+        bytes memory callData = abi.encodeCall(this.gasConsumingFunc, ());
+
+        uint256 operationId = 1234;
+
+        bytes32 txHash = timelock.queueTransaction(address(this), callData, operationId);
+
+        uint256 lockedUntil = block.timestamp + timelock.delay();
+
+        vm.warp(lockedUntil + 20);
+
+        uint256 gasToUse = 214_640;
+
+        vm.expectRevert();
+        timelock.executeTransaction{ gas: gasToUse }(address(this), callData, operationId);
+    }
+
+    function gasConsumingFunc() external {
+        uint256 gasToConsume = 209595;
+        uint256 gasStart = gasleft();
+        for (uint256 i = 0; gasStart - gasleft() < gasToConsume; i++) {
+            assembly {
+                let x := mload(0x1337)
+            }
+        }
     }
 }
