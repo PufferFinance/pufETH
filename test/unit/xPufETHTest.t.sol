@@ -74,13 +74,24 @@ contract xPufETHTest is Test {
         stETH.mint(address(this), type(uint128).max);
     }
 
-    // We deposit pufETH to get xpufETH to this contract
+    // We deposit pufETH to get xpufETH to this contract using .depositTo
     function test_mint_xpufETH(uint8 amount) public {
         stETH.approve(address(pufferVault), type(uint256).max);
         pufferVault.deposit(uint256(amount), address(this));
 
         pufferVault.approve(address(xERC20Lockbox), type(uint256).max);
         xERC20Lockbox.depositTo(address(this), uint256(amount));
+        assertEq(xPufETHProxy.balanceOf(address(this)), uint256(amount), "got xpufETH");
+        assertEq(pufferVault.balanceOf(address(xERC20Lockbox)), uint256(amount), "pufETH is in the lockbox");
+    }
+
+    // We deposit pufETH to get xpufETH to this contract using .deposit
+    function test_deposit_pufETH_for_xpufETH(uint8 amount) public {
+        stETH.approve(address(pufferVault), type(uint256).max);
+        pufferVault.deposit(uint256(amount), address(this));
+
+        pufferVault.approve(address(xERC20Lockbox), type(uint256).max);
+        xERC20Lockbox.deposit(uint256(amount));
         assertEq(xPufETHProxy.balanceOf(address(this)), uint256(amount), "got xpufETH");
         assertEq(pufferVault.balanceOf(address(xERC20Lockbox)), uint256(amount), "pufETH is in the lockbox");
     }
@@ -93,5 +104,25 @@ contract xPufETHTest is Test {
         xPufETHProxy.approve(address(xERC20Lockbox), type(uint256).max);
         xERC20Lockbox.withdrawTo(bob, uint256(amount));
         assertEq(pufferVault.balanceOf(bob), amount, "bob got pufETH");
+    }
+
+    // We withdraw to self
+    function test_mint_and_withdraw_xpufETH(uint8 amount) public {
+        test_mint_xpufETH(amount);
+
+        xPufETHProxy.approve(address(xERC20Lockbox), type(uint256).max);
+
+        uint256 pufEThBalanceBefore = pufferVault.balanceOf(address(this));
+
+        xERC20Lockbox.withdraw(uint256(amount));
+        assertEq(pufferVault.balanceOf(address(this)), pufEThBalanceBefore + amount, "we got pufETH");
+    }
+
+    function test_nativeReverts() public {
+        vm.expectRevert();
+        xERC20Lockbox.depositNativeTo(address(0));
+
+        vm.expectRevert();
+        xERC20Lockbox.depositNative();
     }
 }
