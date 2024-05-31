@@ -233,10 +233,9 @@ contract Timelock {
         returns (bytes memory returnData)
     {
         bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
-        uint256 lockedUntil = queue[txHash];
-        queue[txHash] = 0;
 
         if (msg.sender == OPERATIONS_MULTISIG) {
+            uint256 lockedUntil = queue[txHash];
             // Operations Multisig must follow queue and delay rules
             if (lockedUntil == 0) {
                 revert InvalidTransaction(txHash);
@@ -249,8 +248,11 @@ contract Timelock {
             revert Unauthorized();
         }
 
+        queue[txHash] = 0;
+
         // Execute the transaction
-        returnData = _executeTransaction(target, callData);
+        // slither-disable-next-line arbitrary-send-eth
+        returnData = target.functionCall(callData);
 
         emit TransactionExecuted(txHash, target, callData, operationId);
     }
@@ -291,11 +293,6 @@ contract Timelock {
         }
         emit DelayChanged(delay, newDelay);
         delay = newDelay;
-    }
-
-    function _executeTransaction(address target, bytes calldata callData) internal returns (bytes memory) {
-        // slither-disable-next-line arbitrary-send-eth
-        return target.functionCall(callData);
     }
 
     function _validateAddresses(
