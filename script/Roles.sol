@@ -24,3 +24,6 @@ uint64 constant ADMIN_ROLE = 0;
 
 // Allowlister role for AVSContractsRegistry
 uint64 constant ROLE_ID_AVS_COORDINATOR_ALLOWLISTER = 5;
+
+// Lockbox role for ETH Mainnet
+uint64 constant ROLE_ID_LOCKBOX = 7;
