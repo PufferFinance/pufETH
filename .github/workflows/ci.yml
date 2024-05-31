@@ -56,5 +56,6 @@ jobs:
         with:
           check_hidden: true
           check_filenames: true
+          ignore_words_list: amountIn
           skip: package-lock.json,*.pdf,./.git
 
