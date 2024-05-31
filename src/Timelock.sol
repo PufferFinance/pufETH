@@ -210,6 +210,11 @@ contract Timelock {
         }
 
         bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
+
+        if (queue[txHash] == 0) {
+            revert InvalidTransaction(txHash);
+        }
+
         queue[txHash] = 0;
 
         emit TransactionCanceled(txHash, target, callData, operationId);

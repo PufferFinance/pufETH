@@ -132,6 +132,9 @@ contract TimelockTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidTransaction.selector, txHash));
         timelock.executeTransaction(address(timelock), callData, operationId);
+
+        vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidTransaction.selector, txHash));
+        timelock.cancelTransaction(address(timelock), callData, operationId);
     }
 
     function test_community_transaction() public {
