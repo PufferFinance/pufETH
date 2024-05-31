@@ -199,10 +199,8 @@ contract TimelockTest is Test {
         uint256 operationId = 1234;
 
         // revert if the timelock is too small
-        (bool success, bytes memory returnData) =
-            timelock.executeTransaction(address(timelock), tooSmallDelayCallData, operationId);
-        assertEq(returnData, abi.encodeWithSelector(Timelock.InvalidDelay.selector, 1 days), "return data should fail");
-        assertFalse(success, "should fail");
+        vm.expectRevert(abi.encodeWithSelector(Timelock.InvalidDelay.selector, 1 days));
+        bytes memory returnData = timelock.executeTransaction(address(timelock), tooSmallDelayCallData, operationId);
 
         timelock.executeTransaction(address(timelock), callData, 1234);
 
@@ -310,7 +308,7 @@ contract TimelockTest is Test {
 
         uint256 gasToUse = 214_640;
 
-        vm.expectRevert(abi.encodeWithSelector(Timelock.ExecutionFailedAtTarget.selector));
+        vm.expectRevert();
         timelock.executeTransaction{ gas: gasToUse }(address(this), callData, operationId);
     }
 

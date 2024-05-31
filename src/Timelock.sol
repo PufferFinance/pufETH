@@ -2,6 +2,7 @@
 pragma solidity >=0.8.18;
 
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Timelock
@@ -9,6 +10,8 @@ import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract Timelock {
+    using Address for address;
+
     /**
      * @notice Error to be thrown when a bad address is encountered
      */
@@ -32,11 +35,6 @@ contract Timelock {
      * @param lockedUntil The timestamp when the transaction can be executed
      */
     error Locked(bytes32 txHash, uint256 lockedUntil);
-
-    /**
-     * @notice Error to be thrown when an the target call fails
-     */
-    error ExecutionFailedAtTarget();
 
     /**
      * @notice Error to be thrown when an the params are invalid
@@ -226,45 +224,33 @@ contract Timelock {
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction
      * @param operationId The id of the operation used to identify the transaction
-     * @return success A boolean indicating whether the transaction was successful
      * @return returnData The data returned by the transaction
      */
     function executeTransaction(address target, bytes calldata callData, uint256 operationId)
         external
-        returns (bool success, bytes memory returnData)
+        returns (bytes memory returnData)
     {
         bytes32 txHash = keccak256(abi.encode(target, callData, operationId));
         uint256 lockedUntil = queue[txHash];
         queue[txHash] = 0;
 
-        // Community Multisig can do things without any delay
-        if (msg.sender == COMMUNITY_MULTISIG) {
-            return _executeTransaction(target, callData);
-        }
-
-        // Operations multisig needs to queue it and then execute after a delay
-        if (msg.sender != OPERATIONS_MULTISIG) {
+        if (msg.sender == OPERATIONS_MULTISIG) {
+            // Operations Multisig must follow queue and delay rules
+            if (lockedUntil == 0) {
+                revert InvalidTransaction(txHash);
+            }
+            if (block.timestamp < lockedUntil) {
+                revert Locked(txHash, lockedUntil);
+            }
+        } else if (msg.sender != COMMUNITY_MULTISIG) {
+            // All other senders are unauthorized
             revert Unauthorized();
         }
 
-        // slither-disable-next-line incorrect-equality
-        if (lockedUntil == 0) {
-            revert InvalidTransaction(txHash);
-        }
-
-        if (block.timestamp < lockedUntil) {
-            revert Locked(txHash, lockedUntil);
-        }
-
-        (success, returnData) = _executeTransaction(target, callData);
-
-        if (!success) {
-            revert ExecutionFailedAtTarget();
-        }
+        // Execute the transaction
+        returnData = _executeTransaction(target, callData);
 
         emit TransactionExecuted(txHash, target, callData, operationId);
-
-        return (success, returnData);
     }
 
     /**
@@ -305,9 +291,9 @@ contract Timelock {
         delay = newDelay;
     }
 
-    function _executeTransaction(address target, bytes calldata callData) internal returns (bool, bytes memory) {
+    function _executeTransaction(address target, bytes calldata callData) internal returns (bytes memory) {
         // slither-disable-next-line arbitrary-send-eth
-        return target.call(callData);
+        return target.functionCall(callData);
     }
 
     function _validateAddresses(
