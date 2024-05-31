@@ -163,6 +163,7 @@ contract Timelock {
         bytes[] memory callDatas = new bytes[](targets.length);
 
         for (uint256 i = 0; i < targets.length; ++i) {
+            // slither-disable-next-line calls-loop
             callDatas[i] = abi.encodeCall(AccessManager.setTargetClosed, (targets[i], true));
         }
 
@@ -187,6 +188,7 @@ contract Timelock {
         bytes[] memory callDatas = new bytes[](targets.length);
 
         for (uint256 i = 0; i < targets.length; ++i) {
+            // slither-disable-next-line calls-loop
             callDatas[i] = abi.encodeCall(
                 AccessManager.setTargetFunctionRole, (targets[i], selectors[i], ACCESS_MANAGER.ADMIN_ROLE())
             );
