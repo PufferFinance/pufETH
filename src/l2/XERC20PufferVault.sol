@@ -7,22 +7,19 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC20PermitUpgradeable } from
     "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { XERC20PufferVaultStorage } from "./XERC20PufferVaultStorage.sol";
 
-contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgradeable, UUPSUpgradeable {
+contract XERC20PufferVault is
+    XERC20PufferVaultStorage,
+    IXERC20,
+    AccessManagedUpgradeable,
+    ERC20PermitUpgradeable,
+    UUPSUpgradeable
+{
     /**
      * @notice The duration it takes for the limits to fully replenish
      */
     uint256 private constant _DURATION = 1 days;
-
-    /**
-     * @notice The address of the lockbox contract
-     */
-    address public lockbox;
-
-    /**
-     * @notice Maps bridge address to bridge configurations
-     */
-    mapping(address => Bridge) public bridges;
 
     constructor() {
         _disableInitializers();
@@ -64,7 +61,8 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param lockboxAddress The address of the lockbox
      */
     function setLockbox(address lockboxAddress) public restricted {
-        lockbox = lockboxAddress;
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.lockbox = lockboxAddress;
 
         emit LockboxSet(lockboxAddress);
     }
@@ -93,7 +91,8 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @return limit The limit the bridge has
      */
     function mintingMaxLimitOf(address bridge) public view returns (uint256 limit) {
-        limit = bridges[bridge].minterParams.maxLimit;
+        VaultStorage storage $ = _getPufferVaultStorage();
+        limit = $.bridges[bridge].minterParams.maxLimit;
     }
 
     /**
@@ -103,7 +102,8 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @return limit The limit the bridge has
      */
     function burningMaxLimitOf(address bridge) public view returns (uint256 limit) {
-        limit = bridges[bridge].burnerParams.maxLimit;
+        VaultStorage storage $ = _getPufferVaultStorage();
+        limit = $.bridges[bridge].burnerParams.maxLimit;
     }
 
     /**
@@ -113,11 +113,12 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @return limit The limit the bridge has
      */
     function mintingCurrentLimitOf(address bridge) public view returns (uint256 limit) {
+        VaultStorage storage $ = _getPufferVaultStorage();
         limit = _getCurrentLimit(
-            bridges[bridge].minterParams.currentLimit,
-            bridges[bridge].minterParams.maxLimit,
-            bridges[bridge].minterParams.timestamp,
-            bridges[bridge].minterParams.ratePerSecond
+            $.bridges[bridge].minterParams.currentLimit,
+            $.bridges[bridge].minterParams.maxLimit,
+            $.bridges[bridge].minterParams.timestamp,
+            $.bridges[bridge].minterParams.ratePerSecond
         );
     }
 
@@ -128,11 +129,12 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @return limit The limit the bridge has
      */
     function burningCurrentLimitOf(address bridge) public view returns (uint256 limit) {
+        VaultStorage storage $ = _getPufferVaultStorage();
         limit = _getCurrentLimit(
-            bridges[bridge].burnerParams.currentLimit,
-            bridges[bridge].burnerParams.maxLimit,
-            bridges[bridge].burnerParams.timestamp,
-            bridges[bridge].burnerParams.ratePerSecond
+            $.bridges[bridge].burnerParams.currentLimit,
+            $.bridges[bridge].burnerParams.maxLimit,
+            $.bridges[bridge].burnerParams.timestamp,
+            $.bridges[bridge].burnerParams.ratePerSecond
         );
     }
 
@@ -142,9 +144,10 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param change The change in the limit
      */
     function _useMinterLimits(address bridge, uint256 change) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
         uint256 currentLimit = mintingCurrentLimitOf(bridge);
-        bridges[bridge].minterParams.timestamp = block.timestamp;
-        bridges[bridge].minterParams.currentLimit = currentLimit - change;
+        $.bridges[bridge].minterParams.timestamp = block.timestamp;
+        $.bridges[bridge].minterParams.currentLimit = currentLimit - change;
     }
 
     /**
@@ -153,9 +156,10 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param change The change in the limit
      */
     function _useBurnerLimits(address bridge, uint256 change) internal {
+        VaultStorage storage $ = _getPufferVaultStorage();
         uint256 currentLimit = burningCurrentLimitOf(bridge);
-        bridges[bridge].burnerParams.timestamp = block.timestamp;
-        bridges[bridge].burnerParams.currentLimit = currentLimit - change;
+        $.bridges[bridge].burnerParams.timestamp = block.timestamp;
+        $.bridges[bridge].burnerParams.currentLimit = currentLimit - change;
     }
 
     /**
@@ -165,14 +169,15 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param limit The updated limit we are setting to the bridge
      */
     function _changeMinterLimit(address bridge, uint256 limit) internal {
-        uint256 oldLimit = bridges[bridge].minterParams.maxLimit;
+        VaultStorage storage $ = _getPufferVaultStorage();
+        uint256 oldLimit = $.bridges[bridge].minterParams.maxLimit;
         uint256 currentLimit = mintingCurrentLimitOf(bridge);
-        bridges[bridge].minterParams.maxLimit = limit;
+        $.bridges[bridge].minterParams.maxLimit = limit;
 
-        bridges[bridge].minterParams.currentLimit = _calculateNewCurrentLimit(limit, oldLimit, currentLimit);
+        $.bridges[bridge].minterParams.currentLimit = _calculateNewCurrentLimit(limit, oldLimit, currentLimit);
 
-        bridges[bridge].minterParams.ratePerSecond = limit / _DURATION;
-        bridges[bridge].minterParams.timestamp = block.timestamp;
+        $.bridges[bridge].minterParams.ratePerSecond = limit / _DURATION;
+        $.bridges[bridge].minterParams.timestamp = block.timestamp;
     }
 
     /**
@@ -182,14 +187,15 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param limit The updated limit we are setting to the bridge
      */
     function _changeBurnerLimit(address bridge, uint256 limit) internal {
-        uint256 oldLimit = bridges[bridge].burnerParams.maxLimit;
+        VaultStorage storage $ = _getPufferVaultStorage();
+        uint256 oldLimit = $.bridges[bridge].burnerParams.maxLimit;
         uint256 currentLimit = burningCurrentLimitOf(bridge);
-        bridges[bridge].burnerParams.maxLimit = limit;
+        $.bridges[bridge].burnerParams.maxLimit = limit;
 
-        bridges[bridge].burnerParams.currentLimit = _calculateNewCurrentLimit(limit, oldLimit, currentLimit);
+        $.bridges[bridge].burnerParams.currentLimit = _calculateNewCurrentLimit(limit, oldLimit, currentLimit);
 
-        bridges[bridge].burnerParams.ratePerSecond = limit / _DURATION;
-        bridges[bridge].burnerParams.timestamp = block.timestamp;
+        $.bridges[bridge].burnerParams.ratePerSecond = limit / _DURATION;
+        $.bridges[bridge].burnerParams.timestamp = block.timestamp;
     }
 
     /**
@@ -250,7 +256,8 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param amount The amount to burn
      */
     function _burnWithCaller(address caller, address user, uint256 amount) internal {
-        if (caller != lockbox) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        if (caller != $.lockbox) {
             uint256 currentLimit = burningCurrentLimitOf(caller);
             if (currentLimit < amount) revert IXERC20_NotHighEnoughLimits();
             _useBurnerLimits(caller, amount);
@@ -266,7 +273,8 @@ contract XERC20PufferVault is IXERC20, AccessManagedUpgradeable, ERC20PermitUpgr
      * @param amount The amount to mint
      */
     function _mintWithCaller(address caller, address user, uint256 amount) internal {
-        if (caller != lockbox) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        if (caller != $.lockbox) {
             uint256 currentLimit = mintingCurrentLimitOf(caller);
             if (currentLimit < amount) revert IXERC20_NotHighEnoughLimits();
             _useMinterLimits(caller, amount);

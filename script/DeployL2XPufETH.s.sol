@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { XERC20PufferVault } from "../src/l2/XERC20PufferVault.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "openzeppelin/proxy/utils/Initializable.sol";
-import { NoImplementation } from "../src/NoImplementation.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { ERC1967Proxy } from "openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 import { AccessManager } from "openzeppelin/access/manager/AccessManager.sol";
@@ -33,31 +33,46 @@ contract DeployL2XPufETH is BaseScript {
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
     address communityMultisig = vm.envOr("COMMUNITY_MULTISIG", makeAddr("communityMultisig"));
 
+    address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; // change for mainnet
+    uint256 _MINTING_LIMIT = 1000 * 1e18;
+    uint256 _BURNING_LIMIT = 1000 * 1e18;
+
     function run() public broadcast {
         AccessManager accessManager = new AccessManager(_broadcaster);
+
+        console.log("AccessManager", address(accessManager));
+
+        operationsMultisig = _broadcaster;
+        pauserMultisig = _broadcaster;
+        communityMultisig = _broadcaster;
 
         Timelock timelock = new Timelock({
             accessManager: address(accessManager),
             communityMultisig: communityMultisig,
             operationsMultisig: operationsMultisig,
             pauser: pauserMultisig,
-            initialDelay: 7 days + 1
+            initialDelay: 7 days
         });
 
-        address noImpl = address(new NoImplementation());
+        console.log("AccessManager", address(timelock));
+
+        XERC20PufferVault newImplementation = new XERC20PufferVault();
+        console.log("XERC20PufferVault", address(newImplementation));
 
         bytes32 xPufETHSalt = bytes32("xPufETH");
 
-        ERC1967Proxy xPufETH = new ERC1967Proxy{ salt: xPufETHSalt }(noImpl, "");
-        vm.label(address(xPufETH), "xPufETH");
-
-        XERC20PufferVault newImplementation = new XERC20PufferVault();
+        ERC1967Proxy xPufETH = new ERC1967Proxy{ salt: xPufETHSalt }(
+            address(newImplementation), abi.encodeCall(XERC20PufferVault.initialize, (address(accessManager)))
+        );
+        console.log("xPufETHProxy", address(xPufETH));
 
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);
-        NoImplementation(payable(address(xPufETH))).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(XERC20PufferVault.initialize, (address(accessManager)))
-        );
+
+        bytes memory data =
+            abi.encodeWithSelector(XERC20PufferVault.setLimits.selector, _CONNEXT, _MINTING_LIMIT, _BURNING_LIMIT);
+
+        accessManager.execute(address(xPufETH), data);
 
         bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = XERC20PufferVault.setLockbox.selector;
