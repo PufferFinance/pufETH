@@ -278,13 +278,13 @@ contract Timelock {
         if (msg.sender != address(this)) {
             revert Unauthorized();
         }
-        if (newPauser == address(0)) {
-            revert BadAddress();
-        }
         _setPauser(newPauser);
     }
 
     function _setPauser(address newPauser) internal {
+        if (newPauser == address(0)) {
+            revert BadAddress();
+        }
         emit PauserChanged(pauserMultisig, newPauser);
         pauserMultisig = newPauser;
     }
