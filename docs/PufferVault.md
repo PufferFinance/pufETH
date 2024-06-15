@@ -45,7 +45,7 @@ This function allows the vault to deposit stETH into EigenLayer's stETH strategy
 
 *Effects*
 * Moves stETH from the vault contract to EigenLayer's stETH strategy contract
-* Increases the amount of shares the vault contract has corresponding to EigenLayer's stETH strategy
+* Increases the number of shares the vault contract has corresponding to EigenLayer's stETH strategy
 
 *Requirements*
 * Only callable by the operations or community multisigs

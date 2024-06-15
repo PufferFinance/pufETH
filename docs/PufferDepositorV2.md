@@ -12,7 +12,7 @@ The PufferDepositorV2 facilitates depositing stETH and wstETH into the [PufferVa
 
 #### Important state variables
 
-The only state information the PufferDepositor contract holds are the addresses of stETH (`_ST_ETH`) and wstETH (`_WST_ETH`).
+The only state information the PufferDepositor contract holds is the addresses of stETH (`_ST_ETH`) and wstETH (`_WST_ETH`).
 
 ---
 

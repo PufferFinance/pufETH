@@ -43,7 +43,7 @@ This function allows for swapping a token to stETH, and depositing the received 
 * Mints a corresponding amount of pufETH token to the caller, based on the amount of assets deposited
 
 *Requirements* 
-* The provided `routeCode` calldata must correspond to a proper sequence of assets to swap through, that can result in receiving the specified `amountOutMin` amount of stETH, otherwise the function call will revert
+* The provided `routeCode` calldata must correspond to a proper sequence of assets to swap through, which can result in receiving the specified `amountOutMin` amount of stETH, otherwise the function call will revert
 * The caller must have previously approved the `amountIn` of `tokenIn` token to be taken by this `PufferDepositor` contract
 
 #### `swapAndDepositWithPermit`

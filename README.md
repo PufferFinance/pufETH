@@ -29,7 +29,7 @@ Read more about pufETH and native Liquid Restaking Tokens (nLRTs) in the [Puffer
 
 
 ## How pufETH Works
-Stakers deposit ETH to the PufferVault contract to mint the pufETH nLRT. At the protocol's inception, pufETH's conversion rate is one-to-one, but is expected to increase over time. Assuming the protocol performs well, i.e., accrues more rewards than penalties, the amount of ETH reedamable for pufETH will increase.
+Stakers deposit ETH to the PufferVault contract to mint the pufETH nLRT. At the protocol's inception, pufETH's conversion rate is one-to-one, but is expected to increase over time. Assuming the protocol performs well, i.e., accrues more rewards than penalties, the amount of ETH redeemable for pufETH will increase.
 
 ### Calculating the Conversion Rate
 The conversion rate can be calculated simply as:
