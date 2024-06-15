@@ -54,4 +54,4 @@ This is the function that Guardians will call to update the total amount of ETH 
 *Requirements*
 * Must be called by Guardians
 * Guardian signatures must be valid
-* Must have enough Guardian signatures to meet threshold
+* Must have enough Guardian signatures to meet the threshold
