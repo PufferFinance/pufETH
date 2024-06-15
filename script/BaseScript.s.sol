@@ -17,7 +17,7 @@ abstract contract BaseScript is Script {
     address internal _broadcaster = vm.addr(_deployerPrivateKey);
 
     constructor() {
-        // For local chain (ANVIL) hardcode the deployer as first account from the blockchain
+        // For local chain (ANVIL) hardcode the deployer as the first account from the blockchain
         if (isAnvil()) {
             // Fist account from ANVIL
             _deployerPrivateKey = uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
